@@ -22,14 +22,14 @@
 // ============================================================
 
 input
-  PeriodoEMA   : Integer := 21;   // Período da média central
-  PeriodoATR   : Integer := 14;   // Período do ATR
-  PeriodoIFR   : Integer := 9;    // Período do IFR (RSI rápido para day trade)
-  Mult1        : Float   := 1.5;  // Multiplicador zona de alerta
-  Mult2        : Float   := 2.5;  // Multiplicador zona forte
-  Mult3        : Float   := 3.5;  // Multiplicador zona extrema
-  NivelIFRAlto : Float   := 70;   // IFR sobrecomprado
-  NivelIFRBaixo: Float   := 30;   // IFR sobrevendido
+  PeriodoEMA   : Integer(21);   // Período da média central
+  PeriodoATR   : Integer(14);   // Período do ATR
+  PeriodoIFR   : Integer(9);    // Período do IFR (RSI rápido para day trade)
+  Mult1        : Float(1.5);    // Multiplicador zona de alerta
+  Mult2        : Float(2.5);    // Multiplicador zona forte
+  Mult3        : Float(3.5);    // Multiplicador zona extrema
+  NivelIFRAlto : Float(70);     // IFR sobrecomprado
+  NivelIFRBaixo: Float(30);     // IFR sobrevendido
 
 var
   EMA1        : Float;

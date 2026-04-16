@@ -16,12 +16,12 @@
 // ============================================================
 
 input
-  MargemTotal      : Float   := 3000.00;  // Margem disponibilizada pela mesa (R$)
-  ResultadoAtual   : Float   := -2500.00; // Resultado atual do dia (negativo = prejuízo)
-  MargemPorContrato: Float   := 100.00;   // Margem exigida por contrato (R$)
-  LimitePerda      : Float   := 0.90;     // % da margem = limite de stop da mesa (ex: 90% = R$ 2700)
-  MetaDiaria       : Float   := 500.00;   // Meta de ganho diário (R$)
-  ValorPonto       : Float   := 0.20;     // Valor de 1 ponto por contrato (WIN = 0.20)
+  MargemTotal      : Float(3000.00);   // Margem disponibilizada pela mesa (R$)
+  ResultadoAtual   : Float(-2500.00);  // Resultado atual do dia (negativo = prejuízo)
+  MargemPorContrato: Float(100.00);    // Margem exigida por contrato (R$)
+  LimitePerda      : Float(0.90);      // % da margem = limite de stop da mesa (ex: 90% = R$ 2700)
+  MetaDiaria       : Float(500.00);    // Meta de ganho diário (R$)
+  ValorPonto       : Float(0.20);      // Valor de 1 ponto por contrato (WIN = 0.20)
 
 var
   SaldoRestante     : Float;

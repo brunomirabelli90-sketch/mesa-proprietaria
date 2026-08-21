@@ -9,6 +9,7 @@ e pressione a tecla de captura (F8). O resultado e salvo em config.json.
 """
 import json
 import sys
+import time
 
 import keyboard
 import pyautogui
@@ -16,20 +17,37 @@ import pyautogui
 TECLA_CAPTURA = "f8"
 TECLA_PULAR = "f7"
 BOTOES_PADRAO = ["compra", "venda", "zerar", "cancelar_zerar"]
+DEBOUNCE_CAPTURA_S = 0.4
+
+_ultima_captura_ts = 0.0
 
 
 def capturar_posicao(rotulo):
+    global _ultima_captura_ts
     print(f"  Posicione o mouse sobre '{rotulo}' e pressione "
           f"[{TECLA_CAPTURA.upper()}] para capturar (ou [{TECLA_PULAR.upper()}] para pular).")
     while True:
-        evento = keyboard.read_key()
-        if evento == TECLA_CAPTURA:
+        evento = keyboard.read_event(suppress=False)
+        # keyboard.read_key() tambem devolve o evento de soltar a tecla (e
+        # possivel auto-repeat do Windows), o que fazia uma unica tecla
+        # fisica contar como 2-3 capturas em sequencia. Aqui so reagimos
+        # a tecla pressionada (KEY_DOWN) e ainda assim com debounce.
+        if evento.event_type != keyboard.KEY_DOWN:
+            continue
+        if evento.name not in (TECLA_CAPTURA, TECLA_PULAR):
+            continue
+
+        agora = time.monotonic()
+        if agora - _ultima_captura_ts < DEBOUNCE_CAPTURA_S:
+            continue
+        _ultima_captura_ts = agora
+
+        if evento.name == TECLA_CAPTURA:
             x, y = pyautogui.position()
             print(f"    -> capturado em ({x}, {y})")
             return [x, y]
-        if evento == TECLA_PULAR:
-            print("    -> pulado")
-            return None
+        print("    -> pulado")
+        return None
 
 
 def main():

@@ -8,6 +8,7 @@ Para cada conta/botao pedido, posicione o mouse sobre o botao na tela
 e pressione a tecla de captura (F8). O resultado e salvo em config.json.
 """
 import json
+import os
 import sys
 import time
 
@@ -18,14 +19,13 @@ TECLA_CAPTURA = "f8"
 TECLA_PULAR = "f7"
 BOTOES_PADRAO = ["compra", "venda", "zerar", "cancelar_zerar"]
 DEBOUNCE_CAPTURA_S = 0.4
+ARQUIVO_CONFIG = "config.json"
 
 _ultima_captura_ts = 0.0
 
 
-def capturar_posicao(rotulo):
+def _esperar_tecla_captura_ou_pular():
     global _ultima_captura_ts
-    print(f"  Posicione o mouse sobre '{rotulo}' e pressione "
-          f"[{TECLA_CAPTURA.upper()}] para capturar (ou [{TECLA_PULAR.upper()}] para pular).")
     while True:
         evento = keyboard.read_event(suppress=False)
         # keyboard.read_key() tambem devolve o evento de soltar a tecla (e
@@ -41,24 +41,31 @@ def capturar_posicao(rotulo):
         if agora - _ultima_captura_ts < DEBOUNCE_CAPTURA_S:
             continue
         _ultima_captura_ts = agora
-
-        if evento.name == TECLA_CAPTURA:
-            x, y = pyautogui.position()
-            print(f"    -> capturado em ({x}, {y})")
-            return [x, y]
-        print("    -> pulado")
-        return None
+        return evento.name
 
 
-def main():
-    try:
-        n_contas = int(input("Quantas contas/boletas vai calibrar? ").strip())
-    except ValueError:
-        print("Numero invalido.")
-        sys.exit(1)
+def capturar_posicao(rotulo):
+    while True:
+        print(f"  Posicione o mouse sobre '{rotulo}' e pressione "
+              f"[{TECLA_CAPTURA.upper()}] para capturar (ou [{TECLA_PULAR.upper()}] para pular).")
+        tecla = _esperar_tecla_captura_ou_pular()
 
+        if tecla == TECLA_PULAR:
+            print("    -> pulado")
+            return None
+
+        x, y = pyautogui.position()
+        resp = input(f"    -> capturado em ({x}, {y}). ENTER confirma, "
+                      "'r' + ENTER refaz este ponto: ").strip().lower()
+        if resp == "r":
+            print("    -> refazendo esse botao...")
+            continue
+        return [x, y]
+
+
+def calibrar_contas(n_contas, inicio=1):
     boletas = []
-    for i in range(1, n_contas + 1):
+    for i in range(inicio, inicio + n_contas):
         nome = input(f"Nome da conta {i} (ex: Conta {i}): ").strip() or f"Conta {i}"
         print(f"\nCalibrando '{nome}'")
         botoes = {}
@@ -67,8 +74,11 @@ def main():
             if pos is not None:
                 botoes[botao] = pos
         boletas.append({"nome": nome, "botoes": botoes})
+    return boletas
 
-    config = {
+
+def config_padrao(boletas):
+    return {
         "modo_simulacao": True,
         "delay_entre_cliques_ms": 80,
         "hotkeys": {
@@ -82,10 +92,42 @@ def main():
         "boletas": boletas,
     }
 
-    with open("config.json", "w", encoding="utf-8") as f:
+
+def main():
+    config_existente = None
+    if os.path.exists(ARQUIVO_CONFIG):
+        with open(ARQUIVO_CONFIG, "r", encoding="utf-8") as f:
+            config_existente = json.load(f)
+        nomes = [b.get("nome") for b in config_existente.get("boletas", [])]
+        print(f"Ja existe um {ARQUIVO_CONFIG} com {len(nomes)} conta(s): {nomes}")
+        resp = input("Adicionar novas contas a ele (a) ou comecar do zero (z)? [a/z]: ").strip().lower()
+        if resp != "z":
+            try:
+                n_novas = int(input("Quantas contas novas vai calibrar? ").strip())
+            except ValueError:
+                print("Numero invalido.")
+                sys.exit(1)
+            novas_boletas = calibrar_contas(n_novas, inicio=len(nomes) + 1)
+            config_existente["boletas"].extend(novas_boletas)
+            with open(ARQUIVO_CONFIG, "w", encoding="utf-8") as f:
+                json.dump(config_existente, f, indent=2, ensure_ascii=False)
+            print(f"\n{ARQUIVO_CONFIG} atualizado, agora com "
+                  f"{len(config_existente['boletas'])} conta(s).")
+            return
+
+    try:
+        n_contas = int(input("Quantas contas/boletas vai calibrar? ").strip())
+    except ValueError:
+        print("Numero invalido.")
+        sys.exit(1)
+
+    boletas = calibrar_contas(n_contas)
+    config = config_padrao(boletas)
+
+    with open(ARQUIVO_CONFIG, "w", encoding="utf-8") as f:
         json.dump(config, f, indent=2, ensure_ascii=False)
 
-    print("\nConfig salva em config.json (modo_simulacao=true por padrao).")
+    print(f"\nConfig salva em {ARQUIVO_CONFIG} (modo_simulacao=true por padrao).")
     print("Confira/ajuste o arquivo, teste com o autoclicker em modo simulacao,")
     print("e so depois mude modo_simulacao para false.")
 

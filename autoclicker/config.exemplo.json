@@ -1,0 +1,50 @@
+{
+  "modo_simulacao": true,
+  "delay_entre_cliques_ms": 80,
+  "hotkeys": {
+    "compra": "f1",
+    "venda": "f2",
+    "zerar": "f3",
+    "cancelar_zerar": "f4",
+    "armar_desarmar": "f9",
+    "sair": "f12"
+  },
+  "boletas": [
+    {
+      "nome": "Conta 1",
+      "botoes": {
+        "compra": [155, 219],
+        "venda": [239, 219],
+        "zerar": [197, 273],
+        "cancelar_zerar": [197, 300]
+      }
+    },
+    {
+      "nome": "Conta 2",
+      "botoes": {
+        "compra": [536, 219],
+        "venda": [620, 219],
+        "zerar": [578, 273],
+        "cancelar_zerar": [578, 300]
+      }
+    },
+    {
+      "nome": "Conta 3",
+      "botoes": {
+        "compra": [163, 701],
+        "venda": [247, 701],
+        "zerar": [205, 755],
+        "cancelar_zerar": [205, 782]
+      }
+    },
+    {
+      "nome": "Conta 4",
+      "botoes": {
+        "compra": [541, 685],
+        "venda": [625, 685],
+        "zerar": [583, 739],
+        "cancelar_zerar": [583, 766]
+      }
+    }
+  ]
+}

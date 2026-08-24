@@ -23,6 +23,8 @@ import time
 import keyboard
 import pyautogui
 
+from licenca import validar_licenca
+
 pyautogui.FAILSAFE = True
 pyautogui.PAUSE = 0
 
@@ -87,6 +89,12 @@ def alternar_armado(config):
 
 
 def main():
+    ok, motivo = validar_licenca()
+    print(f"Licenca: {motivo}")
+    if not ok:
+        print("Autoclicker bloqueado.")
+        sys.exit(1)
+
     caminho_config = sys.argv[1] if len(sys.argv) > 1 else "config.json"
     config = carregar_config(caminho_config)
     hotkeys = config["hotkeys"]

@@ -1,3 +1,7 @@
 __pycache__/
 *.pyc
 config.json
+licenca.lic
+build/
+dist/
+*.spec

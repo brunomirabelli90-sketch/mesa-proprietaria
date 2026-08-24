@@ -76,3 +76,48 @@ você pressionar F9. Isso evita disparo acidental ao testar outras teclas.
 - Há debounce de 0,5s por ação, pra segurar tecla pressionada não disparar
   clique repetido.
 - Recomenda-se manter `Qtd` baixo (ex: 1) em todas as boletas ao testar.
+
+## Licença (pra compartilhar com outra pessoa)
+
+O `autoclicker.py` exige um `licenca.lic` válido pra rodar — amarrado ao PC
+de destino e com data de validade. **Isso é uma trava simples (evita cópia
+casual), não é proteção contra engenharia reversa avançada.**
+
+Antes de gerar qualquer licença: troque o valor de `SEGREDO` em `licenca.py`
+por algo só seu, e **nunca** compartilhe `licenca.py` nem `gerar_licenca.py`
+com quem vai receber — só o `licenca.lic` gerado e o autoclicker (de
+preferência já compilado, veja abaixo).
+
+Passo a passo:
+
+1. A pessoa que vai usar roda, na máquina dela:
+   ```
+   python obter_id_maquina.py
+   ```
+   e te manda o ID impresso.
+
+2. Você (com `licenca.py` e `gerar_licenca.py` na sua máquina) roda:
+   ```
+   python gerar_licenca.py <id_que_ela_mandou> <AAAA-MM-DD>
+   ```
+   Isso gera `licenca.lic`, válido só pra aquele PC até aquela data.
+
+3. Manda esse `licenca.lic` pra ela colocar na mesma pasta do autoclicker.
+
+Sua própria máquina também precisa de um `licenca.lic` — rode
+`obter_id_maquina.py` nela e gere a licença pra si mesmo do mesmo jeito.
+
+### Compilando pra `.exe` (esconde o código-fonte)
+
+Rode isso na própria máquina Windows onde vai gerar o executável final
+(PyInstaller não faz cross-compile — rode no Windows pra gerar `.exe`):
+
+```
+pip install pyinstaller
+pyinstaller --onefile --name Autoclicker autoclicker.py
+```
+
+O executável fica em `dist\Autoclicker.exe`. Distribua esse `.exe` junto
+com `config.json` (já calibrado ou pra a pessoa calibrar com `calibrar.py`)
+e o `licenca.lic` gerado pra ela. Não é preciso compilar `calibrar.py` —
+ele não faz nenhuma checagem de licença nem tem nada sensível.

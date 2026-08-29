@@ -191,10 +191,15 @@ a pessoa calibrar com `calibrar.py`) e o `licenca.lic` gerado pra ela. Não é
 preciso compilar `calibrar.py` — ele não faz nenhuma checagem de licença
 nem tem nada sensível.
 
-Pra compilar a versão com interface gráfica também (mesmo ícone):
+Pra compilar a versão com interface gráfica também (mesmo ícone, e
+`--windowed` pra não abrir uma janela de console preta atrás do painel):
 ```
-pyinstaller --onefile --icon=icone.ico --name AutoclickerGUI autoclicker_gui.py
+pyinstaller --onefile --windowed --icon=icone.ico --name AutoclickerGUI autoclicker_gui.py
 ```
+
+Rodando direto com `python autoclicker_gui.py` (sem compilar), o console
+também some usando `abrir_autoclicker_gui.bat` — ele chama `pythonw` (a
+versão do Python sem janela de console) em vez de `python`.
 
 ### Ícone no atalho do `.bat`
 

@@ -64,6 +64,8 @@ ficar erradas — recalibre nesse caso.
 | F3    | Zerar em todas as contas     |
 | F4    | Cancelar ordens + zerar      |
 | F9    | Armar / desarmar             |
+| F10   | Trocar perfil (só com múltiplos configs) |
+| F11   | Alternar modo simulação / real |
 | F12   | Sair                         |
 
 O autoclicker sempre começa **desarmado**: hotkeys de ação são ignoradas até
@@ -145,11 +147,23 @@ Toda vez que uma ação é disparada com sucesso (armado, real ou simulação),
 toca um beep curto (`winsound.Beep`) — ajuda a perceber que disparou sem
 precisar ficar olhando a tela o tempo todo.
 
+## Alternar simulação / real sem editar o arquivo
+
+Em vez de abrir o `config.json` no Bloco de Notas toda vez, a hotkey **F11**
+(`alternar_modo_simulacao`) troca `modo_simulacao` entre `true`/`false` na
+hora, já salvando no arquivo. Na interface gráfica tem um botão pra isso
+também. O terminal (ou o log da janela) mostra pra qual modo mudou.
+
 ## Licença (pra compartilhar com outra pessoa)
 
 O `autoclicker.py` exige um `licenca.lic` válido pra rodar — amarrado ao PC
 de destino e com data de validade. **Isso é uma trava simples (evita cópia
 casual), não é proteção contra engenharia reversa avançada.**
+
+Faltando 3 dias ou menos pra expirar, a mensagem de licença já vem com um
+aviso (`ATENCAO: expira em N dia(s)!`) — aparece no terminal, no painel da
+interface gráfica, e como um popup ao abrir o `autoclicker_gui.py`. Se já
+expirou, o programa bloqueia como sempre.
 
 Antes de gerar qualquer licença: troque o valor de `SEGREDO` em `licenca.py`
 por algo só seu, e **nunca** compartilhe `licenca.py` nem `gerar_licenca.py`

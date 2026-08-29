@@ -94,6 +94,7 @@ def config_padrao(boletas):
             "cancelar_zerar": "f4",
             "armar_desarmar": "f9",
             "trocar_perfil": "f10",
+            "alternar_modo_simulacao": "f11",
             "sair": "f12",
         },
         "boletas": boletas,

@@ -20,6 +20,8 @@ from datetime import date
 
 SEGREDO = b"TROQUE_ESTE_SEGREDO_POR_UM_VALOR_UNICO_SEU_E_NAO_COMPARTILHE"
 
+DIAS_AVISO_EXPIRACAO = 3
+
 
 def obter_id_maquina():
     """ID estavel deste Windows (MachineGuid do registro)."""
@@ -80,7 +82,15 @@ def validar_licenca(caminho="licenca.lic"):
     except ValueError:
         return False, "Data de validade invalida na licenca."
 
-    if date.today() > data_expira:
+    dias_restantes = (data_expira - date.today()).days
+
+    if dias_restantes < 0:
         return False, f"Licenca expirada em {expira_em}."
+
+    if dias_restantes <= DIAS_AVISO_EXPIRACAO:
+        return True, (
+            f"Licenca valida ate {expira_em} "
+            f"(ATENCAO: expira em {dias_restantes} dia(s)!)"
+        )
 
     return True, f"Licenca valida ate {expira_em}."

@@ -9,7 +9,7 @@ Uso:
 import os
 import sys
 import tkinter as tk
-from tkinter import scrolledtext
+from tkinter import messagebox, scrolledtext
 
 import keyboard
 
@@ -29,8 +29,9 @@ COR_LOG_TEXTO = "#00ff9d"
 
 
 class App:
-    def __init__(self, root, caminhos_config):
+    def __init__(self, root, caminhos_config, motivo_licenca=""):
         self.root = root
+        self.motivo_licenca = motivo_licenca
         root.title("Autoclicker multi-conta")
         root.configure(bg=COR_FUNDO)
         if os.path.exists(CAMINHO_ICONE):
@@ -81,12 +82,21 @@ class App:
                   command=lambda: self.disparar("cancelar_zerar"), **estilo_botao
                   ).grid(row=2, column=1, padx=2, pady=2)
 
+        linha_extra = 3
+
         if len(core.PERFIS) > 1:
             tk.Button(
                 botoes, text="Trocar perfil (F10)", width=36,
                 bg=COR_PAINEL, fg=COR_ACENTO, activebackground="#242b3d",
                 command=self.trocar_perfil, **estilo_botao,
-            ).grid(row=3, column=0, columnspan=2, pady=(6, 0))
+            ).grid(row=linha_extra, column=0, columnspan=2, pady=(6, 0))
+            linha_extra += 1
+
+        tk.Button(
+            botoes, text="Modo Simulacao / Real (F11)", width=36,
+            bg=COR_PAINEL, fg=COR_ACENTO, activebackground="#242b3d",
+            command=self.alternar_modo, **estilo_botao,
+        ).grid(row=linha_extra, column=0, columnspan=2, pady=(6, 0))
 
         self.log = scrolledtext.ScrolledText(
             root, width=64, height=18, font=("Consolas", 9),
@@ -113,6 +123,8 @@ class App:
             f"Modo: {'SIMULACAO' if config.get('modo_simulacao', True) else 'REAL'}\n"
             f"Contas: {[b.get('nome') for b in config['boletas']]}"
         )
+        if "ATENCAO" in self.motivo_licenca:
+            texto += f"\n{self.motivo_licenca}"
         self.status.config(text=texto)
 
     def armar(self):
@@ -127,6 +139,10 @@ class App:
         core.trocar_perfil()
         self._atualizar_status()
 
+    def alternar_modo(self):
+        core.alternar_modo_simulacao()
+        self._atualizar_status()
+
     def _registrar_hotkeys(self):
         hotkeys = core.config_atual()["hotkeys"]
 
@@ -137,6 +153,9 @@ class App:
 
         keyboard.add_hotkey(hotkeys["armar_desarmar"], lambda: self.root.after(0, self.armar))
 
+        tecla_modo = hotkeys.get("alternar_modo_simulacao", "f11")
+        keyboard.add_hotkey(tecla_modo, lambda: self.root.after(0, self.alternar_modo))
+
         if len(core.PERFIS) > 1:
             tecla_perfil = hotkeys.get("trocar_perfil", "f10")
             keyboard.add_hotkey(tecla_perfil, lambda: self.root.after(0, self.trocar_perfil))
@@ -144,15 +163,21 @@ class App:
 
 def main():
     ok, motivo = validar_licenca()
+
     if not ok:
-        print(f"Licenca: {motivo}")
-        print("Autoclicker bloqueado.")
+        # console pode estar escondido (pythonw/--windowed), entao o aviso
+        # precisa aparecer numa janela, nao so no terminal.
+        root_erro = tk.Tk()
+        root_erro.withdraw()
+        messagebox.showerror("Autoclicker bloqueado", motivo)
         sys.exit(1)
 
     caminhos = sys.argv[1:] if len(sys.argv) > 1 else ["config.json"]
 
     root = tk.Tk()
-    App(root, caminhos)
+    App(root, caminhos, motivo_licenca=motivo)
+    if "ATENCAO" in motivo:
+        messagebox.showwarning("Licenca", motivo)
     root.mainloop()
 
 

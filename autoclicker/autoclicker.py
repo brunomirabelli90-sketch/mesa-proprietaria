@@ -71,6 +71,11 @@ def carregar_config(caminho):
         return json.load(f)
 
 
+def salvar_config(caminho, config):
+    with open(caminho, "w", encoding="utf-8") as f:
+        json.dump(config, f, indent=2, ensure_ascii=False)
+
+
 def carregar_perfis(caminhos):
     global PERFIS, INDICE_PERFIL
     PERFIS = [(c, carregar_config(c)) for c in caminhos]
@@ -176,6 +181,16 @@ def alternar_armado():
     registrar_historico(f"Autoclicker {estado}")
 
 
+def alternar_modo_simulacao():
+    config = config_atual()
+    config["modo_simulacao"] = not config.get("modo_simulacao", True)
+    caminho = PERFIS[INDICE_PERFIL][0]
+    salvar_config(caminho, config)
+    estado = "SIMULACAO" if config["modo_simulacao"] else "REAL"
+    IMPRIMIR(f"\n*** Modo alterado para: {estado} ***\n")
+    registrar_historico(f"Modo alterado para {estado}")
+
+
 def trocar_perfil():
     global INDICE_PERFIL
     if len(PERFIS) < 2:
@@ -197,6 +212,9 @@ def _registrar_hotkeys_cli():
             keyboard.add_hotkey(tecla, executar_acao, args=(acao,))
 
     keyboard.add_hotkey(hotkeys["armar_desarmar"], alternar_armado)
+
+    tecla_modo = hotkeys.get("alternar_modo_simulacao", "f11")
+    keyboard.add_hotkey(tecla_modo, alternar_modo_simulacao)
 
     if len(PERFIS) > 1:
         tecla_perfil = hotkeys.get("trocar_perfil", "f10")

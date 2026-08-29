@@ -182,15 +182,24 @@ Rode isso na própria máquina Windows onde vai gerar o executável final
 
 ```
 pip install pyinstaller
-pyinstaller --onefile --name Autoclicker autoclicker.py
+pyinstaller --onefile --icon=icone.ico --name Autoclicker autoclicker.py
 ```
 
-O executável fica em `dist\Autoclicker.exe`. Distribua esse `.exe` junto
-com `config.json` (já calibrado ou pra a pessoa calibrar com `calibrar.py`)
-e o `licenca.lic` gerado pra ela. Não é preciso compilar `calibrar.py` —
-ele não faz nenhuma checagem de licença nem tem nada sensível.
+O executável fica em `dist\Autoclicker.exe`, já com o ícone `icone.ico` do
+projeto. Distribua esse `.exe` junto com `config.json` (já calibrado ou pra
+a pessoa calibrar com `calibrar.py`) e o `licenca.lic` gerado pra ela. Não é
+preciso compilar `calibrar.py` — ele não faz nenhuma checagem de licença
+nem tem nada sensível.
 
-Pra compilar a versão com interface gráfica também:
+Pra compilar a versão com interface gráfica também (mesmo ícone):
 ```
-pyinstaller --onefile --name AutoclickerGUI autoclicker_gui.py
+pyinstaller --onefile --icon=icone.ico --name AutoclickerGUI autoclicker_gui.py
 ```
+
+### Ícone no atalho do `.bat`
+
+Os lançadores `abrir_autoclicker.bat` / `abrir_autoclicker_gui.bat` não
+carregam ícone próprio (arquivo `.bat` sempre usa o ícone do terminal). Pra
+usar o `icone.ico` num atalho: cria um atalho do `.bat` (botão direito →
+Enviar para → Área de trabalho), depois botão direito no atalho →
+Propriedades → **Alterar Ícone** → aponta pra `icone.ico`.

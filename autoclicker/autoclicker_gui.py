@@ -6,6 +6,7 @@ numa janela, alem dos hotkeys globais continuarem funcionando.
 Uso:
     python autoclicker_gui.py [config1.json] [config2.json ...]
 """
+import os
 import sys
 import tkinter as tk
 from tkinter import scrolledtext
@@ -14,6 +15,8 @@ import keyboard
 
 import autoclicker as core
 from licenca import validar_licenca
+
+CAMINHO_ICONE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "icone.ico")
 
 # Paleta escura (mesma linha do meta_plano_risco.html do projeto).
 COR_FUNDO = "#0f1419"
@@ -30,6 +33,11 @@ class App:
         self.root = root
         root.title("Autoclicker multi-conta")
         root.configure(bg=COR_FUNDO)
+        if os.path.exists(CAMINHO_ICONE):
+            try:
+                root.iconbitmap(CAMINHO_ICONE)
+            except tk.TclError:
+                pass
 
         core.carregar_perfis(caminhos_config)
         core.IMPRIMIR = self._log

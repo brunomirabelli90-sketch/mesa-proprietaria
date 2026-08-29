@@ -5,3 +5,4 @@ licenca.lic
 build/
 dist/
 *.spec
+historico.log

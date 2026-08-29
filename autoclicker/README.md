@@ -77,6 +77,74 @@ você pressionar F9. Isso evita disparo acidental ao testar outras teclas.
   clique repetido.
 - Recomenda-se manter `Qtd` baixo (ex: 1) em todas as boletas ao testar.
 
+## Histórico de cliques
+
+Toda ação disparada (real ou simulada, inclusive as puladas por não bater a
+cor) é registrada com data/hora em `historico.log`, na mesma pasta. Formato:
+
+```
+2026-08-29 14:32:10  [compra] Conta1: CLICADO em (2068, 235)
+2026-08-29 14:32:10  [compra] Conta2: PULADO (cor nao bate em 2408,245)
+```
+
+Esse arquivo só cresce (nunca é apagado automaticamente) — pode abrir com
+qualquer editor de texto pra conferir o que foi disparado e quando.
+
+## Verificação de cor antes de clicar
+
+`calibrar.py` já grava a cor do pixel de cada botão no momento da captura.
+Pra ativar a verificação, no `config.json`:
+
+```json
+"verificar_cor": true,
+"tolerancia_cor": 30
+```
+
+Com isso ligado (e fora do modo simulação), antes de cada clique real o
+autoclicker confere se a cor daquele ponto na tela ainda bate com a
+capturada na calibração (dentro da tolerância, por canal RGB). Se mudou
+demais — janela moveu, mudou de leilão pra normal, tema mudou — ele **pula
+aquele clique** em vez de arriscar clicar no lugar errado, e registra o
+motivo no `historico.log`. `tolerancia_cor` maior = mais permissivo; muito
+baixo pode gerar falso positivo (pular clique válido) se a cor piscar/mudar
+levemente (ex: seleção, hover).
+
+Configs antigos (sem essa checagem) continuam funcionando normalmente —
+`verificar_cor` é `false` por padrão.
+
+## Perfis (ex: layout normal vs. layout de leilão)
+
+Se o layout das boletas muda em algum momento do dia (o Profit costuma
+empurrar a boleta pra baixo durante o leilão), calibre um `config.json`
+separado pra cada situação e rode o autoclicker apontando pros dois:
+
+```
+python autoclicker.py config_normal.json config_leilao.json
+```
+
+Com mais de um config na linha de comando, a hotkey **F10** (`trocar_perfil`
+no `config.json`) alterna entre eles em tempo real, sem fechar o programa —
+o terminal mostra qual perfil ficou ativo e as contas dele.
+
+## Interface gráfica (opcional)
+
+Além do modo terminal, tem uma janela simples com botões, pros mesmos
+hotkeys (F1-F4, F9, F10) e um log visível na tela — útil pra quem não quer
+ficar olhando texto em janela preta:
+
+```
+python autoclicker_gui.py [config1.json] [config2.json ...]
+```
+
+Mesmas regras de licença, modo simulação, armar/desarmar e perfis do modo
+terminal — só muda a apresentação.
+
+## Som de confirmação
+
+Toda vez que uma ação é disparada com sucesso (armado, real ou simulação),
+toca um beep curto (`winsound.Beep`) — ajuda a perceber que disparou sem
+precisar ficar olhando a tela o tempo todo.
+
 ## Licença (pra compartilhar com outra pessoa)
 
 O `autoclicker.py` exige um `licenca.lic` válido pra rodar — amarrado ao PC
@@ -121,3 +189,8 @@ O executável fica em `dist\Autoclicker.exe`. Distribua esse `.exe` junto
 com `config.json` (já calibrado ou pra a pessoa calibrar com `calibrar.py`)
 e o `licenca.lic` gerado pra ela. Não é preciso compilar `calibrar.py` —
 ele não faz nenhuma checagem de licença nem tem nada sensível.
+
+Pra compilar a versão com interface gráfica também:
+```
+pyinstaller --onefile --name AutoclickerGUI autoclicker_gui.py
+```

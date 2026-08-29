@@ -1,12 +1,17 @@
 """
 Autoclicker visual multi-conta.
 
-Le config.json e registra hotkeys globais. Ao pressionar uma hotkey de acao
-(compra/venda/zerar/cancelar_zerar), clica no botao correspondente de cada
-conta cadastrada, na ordem em que aparecem no config.
+Le um ou mais arquivos de config e registra hotkeys globais. Ao pressionar
+uma hotkey de acao (compra/venda/zerar/cancelar_zerar), clica no botao
+correspondente de cada conta cadastrada, na ordem em que aparecem no config
+ativo.
 
 Uso:
-    python autoclicker.py [caminho_config.json]
+    python autoclicker.py [config1.json] [config2.json ...]
+
+Passar mais de um config permite alternar entre "perfis" (ex: layout
+normal vs layout de leilao) em tempo real com a hotkey 'trocar_perfil'
+(padrao F10), sem fechar o programa.
 
 Seguranca:
 - Comeca DESARMADO. Pressione a hotkey 'armar_desarmar' (padrao F9) para
@@ -15,27 +20,92 @@ Seguranca:
   sem clicar de verdade. Use isso para validar a calibracao primeiro.
 - pyautogui.FAILSAFE fica ligado: jogar o mouse para o canto superior
   esquerdo da tela aborta a acao em andamento.
+- verificar_cor=true no config confere se a cor do pixel no ponto
+  calibrado ainda bate com a cor capturada na calibracao antes de
+  clicar; se mudou demais (layout deslocou), pula aquele clique em vez
+  de arriscar clicar no lugar errado.
+
+Cada acao disparada e' registrada com data/hora em historico.log.
 """
 import json
 import sys
 import time
+from datetime import datetime
 
 import keyboard
 import pyautogui
 
 from licenca import validar_licenca
 
+try:
+    import winsound
+
+    def _beep():
+        try:
+            winsound.Beep(1000, 120)
+        except Exception:
+            pass
+except ImportError:
+    def _beep():
+        pass
+
 pyautogui.FAILSAFE = True
 pyautogui.PAUSE = 0
+
+CAMINHO_LOG = "historico.log"
+
+# IMPRIMIR e' indireto (em vez de chamar print direto) pra permitir que uma
+# interface grafica redirecione as mensagens pra um widget de log.
+IMPRIMIR = print
 
 ARMADO = False
 ULTIMO_DISPARO = {}
 DEBOUNCE_S = 0.5
 
+PERFIS = []  # lista de (caminho, config)
+INDICE_PERFIL = 0
+
 
 def carregar_config(caminho):
     with open(caminho, "r", encoding="utf-8") as f:
         return json.load(f)
+
+
+def carregar_perfis(caminhos):
+    global PERFIS, INDICE_PERFIL
+    PERFIS = [(c, carregar_config(c)) for c in caminhos]
+    INDICE_PERFIL = 0
+
+
+def config_atual():
+    return PERFIS[INDICE_PERFIL][1]
+
+
+def registrar_historico(linha):
+    carimbo = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    try:
+        with open(CAMINHO_LOG, "a", encoding="utf-8") as f:
+            f.write(f"{carimbo}  {linha}\n")
+    except OSError:
+        pass
+
+
+def obter_pos_cor(valor):
+    """Aceita tanto o formato antigo (lista [x, y]) quanto o novo
+    ({"pos": [x, y], "cor": [r, g, b]}), pra nao quebrar configs velhos."""
+    if isinstance(valor, dict):
+        return valor.get("pos"), valor.get("cor")
+    return valor, None
+
+
+def cor_bate(pos, cor_esperada, tolerancia):
+    if not cor_esperada:
+        return True
+    try:
+        atual = pyautogui.pixel(*pos)
+    except Exception:
+        return True
+    return all(abs(a - b) <= tolerancia for a, b in zip(atual, cor_esperada))
 
 
 def pode_disparar(acao):
@@ -47,45 +117,90 @@ def pode_disparar(acao):
     return True
 
 
-def executar_acao(acao, config):
+def executar_acao(acao):
     global ARMADO
 
     if not pode_disparar(acao):
         return
 
+    config = config_atual()
+
     if not ARMADO:
-        print(f"[{acao}] ignorado: autoclicker desarmado (pressione "
-              f"{config['hotkeys']['armar_desarmar'].upper()} para armar).")
+        IMPRIMIR(f"[{acao}] ignorado: autoclicker desarmado (pressione "
+                 f"{config['hotkeys']['armar_desarmar'].upper()} para armar).")
         return
 
     simulacao = config.get("modo_simulacao", True)
     delay_s = config.get("delay_entre_cliques_ms", 80) / 1000.0
+    verificar_cor = config.get("verificar_cor", False)
+    tolerancia_cor = config.get("tolerancia_cor", 30)
 
-    print(f"[{acao}] disparando em {len(config['boletas'])} conta(s) "
-          f"({'SIMULACAO' if simulacao else 'REAL'})...")
+    IMPRIMIR(f"[{acao}] disparando em {len(config['boletas'])} conta(s) "
+             f"({'SIMULACAO' if simulacao else 'REAL'})...")
 
     for boleta in config["boletas"]:
         nome = boleta.get("nome", "?")
-        pos = boleta.get("botoes", {}).get(acao)
-        if pos is None:
-            print(f"  - {nome}: sem coordenada cadastrada para '{acao}', pulando.")
+        valor = boleta.get("botoes", {}).get(acao)
+        if valor is None:
+            IMPRIMIR(f"  - {nome}: sem coordenada cadastrada para '{acao}', pulando.")
             continue
 
+        pos, cor_esperada = obter_pos_cor(valor)
         x, y = pos
+
+        if verificar_cor and not simulacao and not cor_bate(pos, cor_esperada, tolerancia_cor):
+            IMPRIMIR(f"  - {nome}: cor no ponto ({x}, {y}) mudou, pulando "
+                     "(layout pode ter mudado - recalibre se persistir).")
+            registrar_historico(f"[{acao}] {nome}: PULADO (cor nao bate em {x},{y})")
+            continue
+
         if simulacao:
-            print(f"  - {nome}: clicaria em ({x}, {y})")
+            IMPRIMIR(f"  - {nome}: clicaria em ({x}, {y})")
         else:
             pyautogui.click(x, y)
-            print(f"  - {nome}: clicado em ({x}, {y})")
+            IMPRIMIR(f"  - {nome}: clicado em ({x}, {y})")
 
+        registrar_historico(
+            f"[{acao}] {nome}: {'SIMULADO' if simulacao else 'CLICADO'} em ({x}, {y})"
+        )
         time.sleep(delay_s)
 
+    _beep()
 
-def alternar_armado(config):
+
+def alternar_armado():
     global ARMADO
     ARMADO = not ARMADO
     estado = "ARMADO" if ARMADO else "desarmado"
-    print(f"\n*** Autoclicker {estado} ***\n")
+    IMPRIMIR(f"\n*** Autoclicker {estado} ***\n")
+    registrar_historico(f"Autoclicker {estado}")
+
+
+def trocar_perfil():
+    global INDICE_PERFIL
+    if len(PERFIS) < 2:
+        IMPRIMIR("So existe um perfil carregado, nada pra trocar.")
+        return
+    INDICE_PERFIL = (INDICE_PERFIL + 1) % len(PERFIS)
+    caminho, config = PERFIS[INDICE_PERFIL]
+    IMPRIMIR(f"\n*** Perfil ativo agora: {caminho} "
+             f"(contas: {[b.get('nome') for b in config['boletas']]}) ***\n")
+    registrar_historico(f"Perfil trocado para {caminho}")
+
+
+def _registrar_hotkeys_cli():
+    hotkeys = config_atual()["hotkeys"]
+
+    for acao in ("compra", "venda", "zerar", "cancelar_zerar"):
+        tecla = hotkeys.get(acao)
+        if tecla:
+            keyboard.add_hotkey(tecla, executar_acao, args=(acao,))
+
+    keyboard.add_hotkey(hotkeys["armar_desarmar"], alternar_armado)
+
+    if len(PERFIS) > 1:
+        tecla_perfil = hotkeys.get("trocar_perfil", "f10")
+        keyboard.add_hotkey(tecla_perfil, trocar_perfil)
 
 
 def main():
@@ -95,24 +210,24 @@ def main():
         print("Autoclicker bloqueado.")
         sys.exit(1)
 
-    caminho_config = sys.argv[1] if len(sys.argv) > 1 else "config.json"
-    config = carregar_config(caminho_config)
+    caminhos = sys.argv[1:] if len(sys.argv) > 1 else ["config.json"]
+    carregar_perfis(caminhos)
+    config = config_atual()
     hotkeys = config["hotkeys"]
 
     print("Autoclicker carregado.")
+    if len(PERFIS) > 1:
+        print(f"Perfis carregados: {[c for c, _ in PERFIS]} (troca com "
+              f"{hotkeys.get('trocar_perfil', 'f10').upper()})")
     print(f"Contas configuradas: {[b.get('nome') for b in config['boletas']]}")
     print(f"Modo simulacao: {config.get('modo_simulacao', True)}")
+    print(f"Verificar cor antes de clicar: {config.get('verificar_cor', False)}")
     print("Hotkeys:")
     for acao, tecla in hotkeys.items():
         print(f"  {tecla.upper():>6}  ->  {acao}")
     print(f"\nComecando DESARMADO. Pressione {hotkeys['armar_desarmar'].upper()} para armar.\n")
 
-    for acao in ("compra", "venda", "zerar", "cancelar_zerar"):
-        tecla = hotkeys.get(acao)
-        if tecla:
-            keyboard.add_hotkey(tecla, executar_acao, args=(acao, config))
-
-    keyboard.add_hotkey(hotkeys["armar_desarmar"], alternar_armado, args=(config,))
+    _registrar_hotkeys_cli()
 
     print(f"Pressione {hotkeys['sair'].upper()} para sair.")
     keyboard.wait(hotkeys["sair"])

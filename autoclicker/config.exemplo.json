@@ -1,5 +1,7 @@
 {
   "modo_simulacao": true,
+  "verificar_cor": false,
+  "tolerancia_cor": 30,
   "delay_entre_cliques_ms": 80,
   "hotkeys": {
     "compra": "f1",
@@ -7,14 +9,15 @@
     "zerar": "f3",
     "cancelar_zerar": "f4",
     "armar_desarmar": "f9",
+    "trocar_perfil": "f10",
     "sair": "f12"
   },
   "boletas": [
     {
       "nome": "Conta 1",
       "botoes": {
-        "compra": [155, 219],
-        "venda": [239, 219],
+        "compra": {"pos": [155, 219], "cor": [245, 166, 35]},
+        "venda": {"pos": [239, 219], "cor": [46, 204, 113]},
         "zerar": [197, 273],
         "cancelar_zerar": [197, 300]
       }

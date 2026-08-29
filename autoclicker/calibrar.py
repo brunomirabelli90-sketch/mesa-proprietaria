@@ -60,7 +60,11 @@ def capturar_posicao(rotulo):
         if resp == "r":
             print("    -> refazendo esse botao...")
             continue
-        return [x, y]
+        try:
+            cor = list(pyautogui.pixel(x, y))
+        except Exception:
+            cor = None
+        return {"pos": [x, y], "cor": cor}
 
 
 def calibrar_contas(n_contas, inicio=1):
@@ -80,6 +84,8 @@ def calibrar_contas(n_contas, inicio=1):
 def config_padrao(boletas):
     return {
         "modo_simulacao": True,
+        "verificar_cor": False,
+        "tolerancia_cor": 30,
         "delay_entre_cliques_ms": 80,
         "hotkeys": {
             "compra": "f1",
@@ -87,6 +93,7 @@ def config_padrao(boletas):
             "zerar": "f3",
             "cancelar_zerar": "f4",
             "armar_desarmar": "f9",
+            "trocar_perfil": "f10",
             "sair": "f12",
         },
         "boletas": boletas,

@@ -69,11 +69,16 @@ linha 2 é sempre o ativo real, já que o painel sempre lê a **linha 2**.
 
 ## Uso
 
-Com o Excel montado e aberto (ver acima):
+Com o Excel montado e aberto (ver acima), duas formas de abrir:
 
 ```
 python painel_leilao.py
 ```
+
+Ou dá duplo clique em **`abrir_painel_leilao.bat`** — abre sem janela de
+console atrás e com o nome/ícone certo na barra de tarefas (rodar
+`python painel_leilao.py` direto mostra "Python 3.14" genérico ali, porque
+é o próprio interpretador aparecendo, não o programa).
 
 O painel atualiza sozinho a cada 1,5s. Se não achar o Excel aberto, mostra
 "Excel não encontrado" e fica tentando reconectar sem precisar reiniciar o

@@ -27,6 +27,16 @@ COR_ACENTO = "#00d4ff"
 COR_LOG_FUNDO = "#05080c"
 COR_LOG_TEXTO = "#00ff9d"
 
+NOMES_ACAO = {
+    "compra": "Compra",
+    "venda": "Venda",
+    "zerar": "Zerar",
+    "cancelar_zerar": "Cancelar + Zerar",
+    "armar_desarmar": "Armar / Desarmar",
+    "trocar_perfil": "Trocar perfil",
+    "alternar_modo_simulacao": "Modo Simulacao / Real",
+}
+
 
 class App:
     def __init__(self, root, caminhos_config, motivo_licenca=""):
@@ -43,6 +53,8 @@ class App:
         core.carregar_perfis(caminhos_config)
         core.IMPRIMIR = self._log
 
+        self._hotkey_handlers = {}  # acao -> handler do keyboard.add_hotkey
+
         self.status = tk.Label(
             root, text="", justify="left", anchor="w",
             font=("Consolas", 10), padx=10, pady=8,
@@ -53,7 +65,7 @@ class App:
         botoes = tk.Frame(root, bg=COR_FUNDO)
         botoes.pack(padx=10, pady=4)
 
-        estilo_botao = dict(
+        self.estilo_botao = dict(
             font=("Segoe UI", 10, "bold"), bd=0, relief="flat",
             activeforeground=COR_TEXTO, cursor="hand2",
         )
@@ -61,25 +73,25 @@ class App:
         self.btn_armar = tk.Button(
             botoes, text="Armar / Desarmar (F9)", width=36, height=1,
             bg=COR_PAINEL, fg=COR_ACENTO, activebackground="#242b3d",
-            command=self.armar, **estilo_botao,
+            command=self.armar, **self.estilo_botao,
         )
         self.btn_armar.grid(row=0, column=0, columnspan=2, pady=(0, 6))
 
         tk.Button(botoes, text="Compra (F1)", width=17, bg="#cc7a00", fg="white",
                   activebackground="#e68a00",
-                  command=lambda: self.disparar("compra"), **estilo_botao
+                  command=lambda: self.disparar("compra"), **self.estilo_botao
                   ).grid(row=1, column=0, padx=2, pady=2)
         tk.Button(botoes, text="Venda (F2)", width=17, bg="#1f8a4c", fg="white",
                   activebackground="#25a15a",
-                  command=lambda: self.disparar("venda"), **estilo_botao
+                  command=lambda: self.disparar("venda"), **self.estilo_botao
                   ).grid(row=1, column=1, padx=2, pady=2)
         tk.Button(botoes, text="Zerar (F3)", width=17, bg="#b03030", fg="white",
                   activebackground="#c93a3a",
-                  command=lambda: self.disparar("zerar"), **estilo_botao
+                  command=lambda: self.disparar("zerar"), **self.estilo_botao
                   ).grid(row=2, column=0, padx=2, pady=2)
         tk.Button(botoes, text="Cancelar+Zerar (F4)", width=17,
                   bg=COR_PAINEL, fg=COR_TEXTO, activebackground="#242b3d",
-                  command=lambda: self.disparar("cancelar_zerar"), **estilo_botao
+                  command=lambda: self.disparar("cancelar_zerar"), **self.estilo_botao
                   ).grid(row=2, column=1, padx=2, pady=2)
 
         linha_extra = 3
@@ -88,14 +100,21 @@ class App:
             tk.Button(
                 botoes, text="Trocar perfil (F10)", width=36,
                 bg=COR_PAINEL, fg=COR_ACENTO, activebackground="#242b3d",
-                command=self.trocar_perfil, **estilo_botao,
+                command=self.trocar_perfil, **self.estilo_botao,
             ).grid(row=linha_extra, column=0, columnspan=2, pady=(6, 0))
             linha_extra += 1
 
         tk.Button(
             botoes, text="Modo Simulacao / Real (F11)", width=36,
             bg=COR_PAINEL, fg=COR_ACENTO, activebackground="#242b3d",
-            command=self.alternar_modo, **estilo_botao,
+            command=self.alternar_modo, **self.estilo_botao,
+        ).grid(row=linha_extra, column=0, columnspan=2, pady=(6, 0))
+        linha_extra += 1
+
+        tk.Button(
+            botoes, text="Configuracoes (atalhos)", width=36,
+            bg=COR_PAINEL, fg=COR_TEXTO_FRACO, activebackground="#242b3d",
+            command=self.abrir_configuracoes, **self.estilo_botao,
         ).grid(row=linha_extra, column=0, columnspan=2, pady=(6, 0))
 
         self.log = scrolledtext.ScrolledText(
@@ -143,22 +162,120 @@ class App:
         core.alternar_modo_simulacao()
         self._atualizar_status()
 
+    def _callback_para(self, acao):
+        if acao == "armar_desarmar":
+            return self.armar
+        if acao == "alternar_modo_simulacao":
+            return self.alternar_modo
+        if acao == "trocar_perfil":
+            return self.trocar_perfil
+        return lambda a=acao: self.disparar(a)
+
     def _registrar_hotkeys(self):
         hotkeys = core.config_atual()["hotkeys"]
 
-        for acao in ("compra", "venda", "zerar", "cancelar_zerar"):
-            tecla = hotkeys.get(acao)
+        for acao in ("compra", "venda", "zerar", "cancelar_zerar", "armar_desarmar",
+                     "alternar_modo_simulacao"):
+            tecla = hotkeys.get(acao) or ("f11" if acao == "alternar_modo_simulacao" else None)
             if tecla:
-                keyboard.add_hotkey(tecla, lambda a=acao: self.root.after(0, lambda: self.disparar(a)))
-
-        keyboard.add_hotkey(hotkeys["armar_desarmar"], lambda: self.root.after(0, self.armar))
-
-        tecla_modo = hotkeys.get("alternar_modo_simulacao", "f11")
-        keyboard.add_hotkey(tecla_modo, lambda: self.root.after(0, self.alternar_modo))
+                self._vincular(acao, tecla)
 
         if len(core.PERFIS) > 1:
             tecla_perfil = hotkeys.get("trocar_perfil", "f10")
-            keyboard.add_hotkey(tecla_perfil, lambda: self.root.after(0, self.trocar_perfil))
+            self._vincular("trocar_perfil", tecla_perfil)
+
+    def _vincular(self, acao, tecla):
+        callback = self._callback_para(acao)
+        handler = keyboard.add_hotkey(tecla, lambda: self.root.after(0, callback))
+        self._hotkey_handlers[acao] = handler
+
+    def _desvincular(self, acao):
+        handler = self._hotkey_handlers.pop(acao, None)
+        if handler is not None:
+            try:
+                keyboard.remove_hotkey(handler)
+            except (KeyError, ValueError):
+                pass
+
+    def abrir_configuracoes(self):
+        janela = tk.Toplevel(self.root)
+        janela.title("Configuracoes - atalhos")
+        janela.configure(bg=COR_FUNDO)
+        if os.path.exists(CAMINHO_ICONE):
+            try:
+                janela.iconbitmap(CAMINHO_ICONE)
+            except tk.TclError:
+                pass
+
+        tk.Label(
+            janela, text="Clique em 'Alterar' e pressione a tecla nova.",
+            bg=COR_FUNDO, fg=COR_TEXTO_FRACO, font=("Segoe UI", 9),
+        ).grid(row=0, column=0, columnspan=3, padx=10, pady=(10, 6), sticky="w")
+
+        hotkeys = core.config_atual()["hotkeys"]
+        acoes_visiveis = list(NOMES_ACAO.keys())
+        if len(core.PERFIS) <= 1:
+            acoes_visiveis.remove("trocar_perfil")
+
+        self._labels_tecla = {}
+
+        for i, acao in enumerate(acoes_visiveis, start=1):
+            tecla = hotkeys.get(acao, "f11" if acao == "alternar_modo_simulacao" else "?")
+            tk.Label(
+                janela, text=NOMES_ACAO[acao], bg=COR_FUNDO, fg=COR_TEXTO,
+                font=("Segoe UI", 10), anchor="w", width=22,
+            ).grid(row=i, column=0, padx=(10, 4), pady=3, sticky="w")
+
+            lbl_tecla = tk.Label(
+                janela, text=tecla.upper(), bg=COR_PAINEL, fg=COR_ACENTO,
+                font=("Consolas", 10, "bold"), width=8,
+            )
+            lbl_tecla.grid(row=i, column=1, padx=4, pady=3)
+            self._labels_tecla[acao] = lbl_tecla
+
+            tk.Button(
+                janela, text="Alterar", bg=COR_PAINEL, fg=COR_TEXTO,
+                activebackground="#242b3d", bd=0, relief="flat", cursor="hand2",
+                command=lambda a=acao, lbl=lbl_tecla: self._capturar_tecla(janela, a, lbl),
+            ).grid(row=i, column=2, padx=(4, 10), pady=3)
+
+        tk.Button(
+            janela, text="Fechar", bg=COR_PAINEL, fg=COR_TEXTO,
+            activebackground="#242b3d", bd=0, relief="flat", cursor="hand2",
+            command=janela.destroy,
+        ).grid(row=len(acoes_visiveis) + 1, column=0, columnspan=3, pady=(8, 10))
+
+    def _capturar_tecla(self, janela, acao, lbl_tecla):
+        texto_original = lbl_tecla.cget("text")
+        lbl_tecla.config(text="...", fg=COR_TEXTO_FRACO)
+        janela.focus_force()
+
+        def ao_pressionar(event):
+            janela.unbind("<KeyPress>")
+            nova_tecla = event.keysym.lower()
+
+            hotkeys = core.config_atual()["hotkeys"]
+            conflito = next(
+                (a for a, t in hotkeys.items() if t == nova_tecla and a != acao), None
+            )
+            if conflito:
+                messagebox.showwarning(
+                    "Tecla em uso",
+                    f"'{nova_tecla.upper()}' ja esta em uso por '{NOMES_ACAO.get(conflito, conflito)}'.",
+                )
+                lbl_tecla.config(text=texto_original, fg=COR_ACENTO)
+                return
+
+            self._desvincular(acao)
+            hotkeys[acao] = nova_tecla
+            caminho_perfil = core.PERFIS[core.INDICE_PERFIL][0]
+            core.salvar_config(caminho_perfil, core.config_atual())
+            self._vincular(acao, nova_tecla)
+
+            lbl_tecla.config(text=nova_tecla.upper(), fg=COR_ACENTO)
+            self._log(f"Atalho de '{NOMES_ACAO.get(acao, acao)}' alterado para {nova_tecla.upper()}.")
+
+        janela.bind("<KeyPress>", ao_pressionar)
 
 
 def main():

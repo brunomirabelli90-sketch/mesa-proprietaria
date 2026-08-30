@@ -141,6 +141,14 @@ python autoclicker_gui.py [config1.json] [config2.json ...]
 Mesmas regras de licença, modo simulação, armar/desarmar e perfis do modo
 terminal — só muda a apresentação.
 
+### Trocar os atalhos pela própria interface
+
+Botão **"Configurações (atalhos)"** no painel abre uma tela listando cada
+ação e a tecla atual. Clica em **Alterar**, aperta a tecla nova, e pronto —
+já salva no `config.json` e o atalho passa a valer na hora, sem precisar
+fechar o programa nem editar arquivo nenhum. Se a tecla escolhida já
+estiver em uso por outra ação, ele avisa e não troca.
+
 ## Som de confirmação
 
 Toda vez que uma ação é disparada com sucesso (armado, real ou simulação),

@@ -79,6 +79,24 @@ O painel atualiza sozinho a cada 1,5s. Se não achar o Excel aberto, mostra
 "Excel não encontrado" e fica tentando reconectar sem precisar reiniciar o
 programa.
 
+### Modo live (esconder a estratégia)
+
+Checkbox **"Modo live (ocultar estratégia)"** no topo esconde tudo que
+revela como o sinal é calculado — valores e nomes de Fechamento, Ajuste,
+Preço Teórico, os dois gaps, a linha de confirma/diverge, e os índices lá
+fora — tudo vira `••••`. O **badge grande (COMPRA/VENDA/AGUARDANDO)**
+continua visível e atualizando, porque é a parte que faz sentido mostrar
+numa live. Liga/desliga na hora, sem esperar o próximo ciclo.
+
+## Compilando pra `.exe`
+
+```
+pip install pyinstaller
+python -m PyInstaller --onefile --windowed --icon=icone.ico --name PainelLeilao painel_leilao.py
+```
+
+`--windowed` evita abrir uma janela de console preta atrás do painel.
+
 ## Arquivos
 
 - `estrategia_leilao.py` — lógica pura do cálculo do sinal (sem depender
@@ -86,3 +104,4 @@ programa.
 - `excel_leitor.py` — conecta na instância do Excel já aberta (via
   `pywin32`) e lê as células.
 - `painel_leilao.py` — a interface gráfica (Tkinter).
+- `icone.ico` — ícone do programa (janela e `.exe` compilado).

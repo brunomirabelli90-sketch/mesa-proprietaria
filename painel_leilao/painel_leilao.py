@@ -108,6 +108,7 @@ class PainelLeilao:
         dados_frame.pack(fill="x", padx=16, pady=6)
 
         self.linhas_dados = {}
+        self.rotulos_dados = []  # (label_widget, texto_original)
         for i, (chave, rotulo) in enumerate([
             ("fechamento", "Fechamento Anterior"),
             ("ajuste", "Aj. Anterior"),
@@ -115,10 +116,13 @@ class PainelLeilao:
             ("gap_fechamento", "Gap (vs Fechamento)"),
             ("gap_ajuste", "Gap (vs Ajuste)"),
         ]):
-            tk.Label(
+            lbl_rotulo = tk.Label(
                 dados_frame, text=rotulo, font=("Segoe UI", 10),
                 bg=COR_PAINEL, fg=COR_TEXTO_FRACO, anchor="w", width=22,
-            ).grid(row=i, column=0, sticky="w", padx=(10, 4), pady=3)
+            )
+            lbl_rotulo.grid(row=i, column=0, sticky="w", padx=(10, 4), pady=3)
+            self.rotulos_dados.append((lbl_rotulo, rotulo))
+
             lbl_valor = tk.Label(
                 dados_frame, text="-", font=("Consolas", 11, "bold"),
                 bg=COR_PAINEL, fg=COR_TEXTO, anchor="e", width=14,
@@ -145,6 +149,8 @@ class PainelLeilao:
         externos_frame = tk.Frame(root, bg=COR_FUNDO)
         externos_frame.pack(fill="x", padx=16, pady=(0, 16))
 
+        self.rotulos_indices = []  # (label_widget, texto_original)
+
         self.lbl_sp500 = self._criar_bloco_indice(externos_frame, "S&P 500", destaque=True)
         self.lbl_nasdaq = self._criar_bloco_indice(externos_frame, "Nasdaq")
         self.lbl_dow = self._criar_bloco_indice(externos_frame, "Dow Jones")
@@ -154,10 +160,12 @@ class PainelLeilao:
     def _criar_bloco_indice(self, container, nome, destaque=False):
         frame = tk.Frame(container, bg=COR_PAINEL)
         frame.pack(side="left", expand=True, fill="x", padx=(0, 8))
-        tk.Label(
+        lbl_nome = tk.Label(
             frame, text=nome, font=("Segoe UI", 9 if not destaque else 10, "bold"),
             bg=COR_PAINEL, fg=COR_TEXTO_FRACO,
-        ).pack(pady=(8, 0))
+        )
+        lbl_nome.pack(pady=(8, 0))
+        self.rotulos_indices.append((lbl_nome, nome))
         lbl = tk.Label(
             frame, text="-", font=("Consolas", 16 if destaque else 12, "bold"),
             bg=COR_PAINEL, fg=COR_TEXTO_FRACO,
@@ -196,11 +204,19 @@ class PainelLeilao:
         """Redesenha a tela com os ultimos dados lidos, respeitando o modo
         live (chamada tanto apos ler o Excel quanto ao ligar/desligar o
         checkbox, pra reagir na hora sem esperar o proximo ciclo)."""
+        self._atualizar_rotulos()
         if self._cache_resultado is not None:
             self._atualizar_badge(self._cache_resultado)
         if self._cache_dados is not None and self._cache_resultado is not None:
             self._atualizar_dados(self._cache_dados, self._cache_resultado)
             self._atualizar_indices(self._cache_dados)
+
+    def _atualizar_rotulos(self):
+        oculto = self.var_modo_live.get()
+        for lbl, texto_original in self.rotulos_dados:
+            lbl.config(text="••••" if oculto else texto_original)
+        for lbl, texto_original in self.rotulos_indices:
+            lbl.config(text="•••" if oculto else texto_original)
 
     def _atualizar_badge(self, r):
         # o sinal final fica sempre visivel, inclusive no modo live - e'

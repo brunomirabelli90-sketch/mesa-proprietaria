@@ -7,6 +7,7 @@ Uso:
     python autoclicker_gui.py [config1.json] [config2.json ...]
 """
 import os
+import subprocess
 import sys
 import tkinter as tk
 from tkinter import messagebox, scrolledtext
@@ -52,15 +53,27 @@ class App:
 
         core.carregar_perfis(caminhos_config)
         core.IMPRIMIR = self._log
+        core.AO_DISPARAR = self._flash
 
         self._hotkey_handlers = {}  # acao -> handler do keyboard.add_hotkey
+
+        topo_frame = tk.Frame(root, bg=COR_FUNDO)
+        topo_frame.pack(fill="x", padx=10, pady=(10, 0))
+
+        self.var_sempre_topo = tk.BooleanVar(value=False)
+        tk.Checkbutton(
+            topo_frame, text="Sempre no topo", variable=self.var_sempre_topo,
+            command=self._alternar_sempre_topo, bg=COR_FUNDO, fg=COR_TEXTO_FRACO,
+            selectcolor=COR_PAINEL, activebackground=COR_FUNDO,
+            activeforeground=COR_TEXTO, font=("Segoe UI", 9),
+        ).pack(side="right")
 
         self.status = tk.Label(
             root, text="", justify="left", anchor="w",
             font=("Consolas", 10), padx=10, pady=8,
             bg=COR_PAINEL, fg=COR_TEXTO,
         )
-        self.status.pack(fill="x", padx=10, pady=(10, 6))
+        self.status.pack(fill="x", padx=10, pady=(4, 6))
 
         botoes = tk.Frame(root, bg=COR_FUNDO)
         botoes.pack(padx=10, pady=4)
@@ -112,10 +125,22 @@ class App:
         linha_extra += 1
 
         tk.Button(
-            botoes, text="Configuracoes (atalhos)", width=36,
+            botoes, text="Configuracoes (atalhos e tempos)", width=36,
             bg=COR_PAINEL, fg=COR_TEXTO_FRACO, activebackground="#242b3d",
             command=self.abrir_configuracoes, **self.estilo_botao,
         ).grid(row=linha_extra, column=0, columnspan=2, pady=(6, 0))
+        linha_extra += 1
+
+        tk.Button(
+            botoes, text="Ver historico completo", width=17,
+            bg=COR_PAINEL, fg=COR_TEXTO_FRACO, activebackground="#242b3d",
+            command=self.ver_historico, **self.estilo_botao,
+        ).grid(row=linha_extra, column=0, padx=2, pady=2)
+        tk.Button(
+            botoes, text="Resumo do historico", width=17,
+            bg=COR_PAINEL, fg=COR_TEXTO_FRACO, activebackground="#242b3d",
+            command=self.ver_resumo_historico, **self.estilo_botao,
+        ).grid(row=linha_extra, column=1, padx=2, pady=2)
 
         self.log = scrolledtext.ScrolledText(
             root, width=64, height=18, font=("Consolas", 9),
@@ -126,6 +151,69 @@ class App:
 
         self._registrar_hotkeys()
         self._atualizar_status()
+        self._agendar_verificacao_auto_desarme()
+
+    def _alternar_sempre_topo(self):
+        self.root.attributes("-topmost", self.var_sempre_topo.get())
+
+    def _agendar_verificacao_auto_desarme(self):
+        armado_antes = core.ARMADO
+        core.verificar_auto_desarme()
+        if armado_antes != core.ARMADO:
+            self._atualizar_status()
+        self.root.after(15000, self._agendar_verificacao_auto_desarme)
+
+    def _flash(self):
+        cor_original = self.status.cget("bg")
+
+        def restaurar():
+            self.status.config(bg=cor_original)
+
+        self.status.config(bg=COR_ACENTO)
+        self.root.after(150, restaurar)
+
+    def ver_historico(self):
+        caminho = os.path.abspath(core.CAMINHO_LOG)
+        if not os.path.exists(caminho):
+            messagebox.showinfo("Historico", "Ainda nao existe historico.log (nenhuma acao disparada armado).")
+            return
+        try:
+            os.startfile(caminho)
+        except AttributeError:
+            subprocess.Popen(["xdg-open", caminho])
+
+    def ver_resumo_historico(self):
+        resumo = core.resumir_historico(core.CAMINHO_LOG)
+        if not resumo:
+            messagebox.showinfo("Resumo", "Ainda nao ha nada registrado no historico.log.")
+            return
+
+        janela = tk.Toplevel(self.root)
+        janela.title("Resumo do historico")
+        janela.configure(bg=COR_FUNDO)
+        if os.path.exists(CAMINHO_ICONE):
+            try:
+                janela.iconbitmap(CAMINHO_ICONE)
+            except tk.TclError:
+                pass
+
+        texto = scrolledtext.ScrolledText(
+            janela, width=50, height=20, font=("Consolas", 9),
+            bg=COR_LOG_FUNDO, fg=COR_LOG_TEXTO, bd=0, relief="flat",
+        )
+        texto.pack(padx=10, pady=10)
+
+        por_conta_acao = {}
+        for (acao, conta, resultado), qtd in sorted(resumo.items()):
+            por_conta_acao.setdefault((acao, conta), {})[resultado] = qtd
+
+        for (acao, conta), resultados in sorted(por_conta_acao.items()):
+            partes = ", ".join(f"{r}: {q}" for r, q in resultados.items())
+            texto.insert("end", f"[{acao}] {conta}: {partes}\n")
+
+        total_geral = sum(resumo.values())
+        texto.insert("end", f"\nTotal de eventos no log: {total_geral}\n")
+        texto.config(state="disabled")
 
     def _log(self, texto):
         def inserir():
@@ -136,11 +224,13 @@ class App:
     def _atualizar_status(self):
         config = core.config_atual()
         caminho_perfil = core.PERFIS[core.INDICE_PERFIL][0]
+        contadores = " ".join(f"{a}={n}" for a, n in core.CONTADORES.items())
         texto = (
             f"Perfil: {caminho_perfil}\n"
             f"Armado: {'SIM' if core.ARMADO else 'nao'}    "
             f"Modo: {'SIMULACAO' if config.get('modo_simulacao', True) else 'REAL'}\n"
-            f"Contas: {[b.get('nome') for b in config['boletas']]}"
+            f"Contas: {[b.get('nome') for b in config['boletas']]}\n"
+            f"Disparos na sessao: {contadores}"
         )
         if "ATENCAO" in self.motivo_licenca:
             texto += f"\n{self.motivo_licenca}"
@@ -239,11 +329,61 @@ class App:
                 command=lambda a=acao, lbl=lbl_tecla: self._capturar_tecla(janela, a, lbl),
             ).grid(row=i, column=2, padx=(4, 10), pady=3)
 
+        linha = len(acoes_visiveis) + 1
+        tk.Frame(janela, bg=COR_TEXTO_FRACO, height=1).grid(
+            row=linha, column=0, columnspan=3, sticky="ew", padx=10, pady=6
+        )
+        linha += 1
+
+        config = core.config_atual()
+
+        tk.Label(
+            janela, text="Delay entre cliques (ms)", bg=COR_FUNDO, fg=COR_TEXTO,
+            font=("Segoe UI", 10), anchor="w", width=22,
+        ).grid(row=linha, column=0, padx=(10, 4), pady=3, sticky="w")
+        var_delay = tk.StringVar(value=str(config.get("delay_entre_cliques_ms", 80)))
+        tk.Entry(
+            janela, textvariable=var_delay, width=8, bg=COR_PAINEL, fg=COR_ACENTO,
+            insertbackground=COR_ACENTO, bd=0, font=("Consolas", 10),
+        ).grid(row=linha, column=1, padx=4, pady=3)
+        linha += 1
+
+        tk.Label(
+            janela, text="Auto-desarmar apos (min, 0=off)", bg=COR_FUNDO, fg=COR_TEXTO,
+            font=("Segoe UI", 10), anchor="w", width=22,
+        ).grid(row=linha, column=0, padx=(10, 4), pady=3, sticky="w")
+        var_auto_desarme = tk.StringVar(value=str(config.get("auto_desarmar_minutos", 0)))
+        tk.Entry(
+            janela, textvariable=var_auto_desarme, width=8, bg=COR_PAINEL, fg=COR_ACENTO,
+            insertbackground=COR_ACENTO, bd=0, font=("Consolas", 10),
+        ).grid(row=linha, column=1, padx=4, pady=3)
+        linha += 1
+
+        def salvar_tempos():
+            try:
+                delay = int(var_delay.get())
+                auto_desarme = float(var_auto_desarme.get())
+            except ValueError:
+                messagebox.showwarning("Valor invalido", "Delay e auto-desarme precisam ser numeros.")
+                return
+            config["delay_entre_cliques_ms"] = delay
+            config["auto_desarmar_minutos"] = auto_desarme
+            caminho_perfil = core.PERFIS[core.INDICE_PERFIL][0]
+            core.salvar_config(caminho_perfil, config)
+            self._log(f"Delay={delay}ms, auto-desarme={auto_desarme}min salvos.")
+
+        tk.Button(
+            janela, text="Salvar tempos", bg=COR_PAINEL, fg=COR_TEXTO,
+            activebackground="#242b3d", bd=0, relief="flat", cursor="hand2",
+            command=salvar_tempos,
+        ).grid(row=linha, column=0, columnspan=3, pady=(4, 8))
+        linha += 1
+
         tk.Button(
             janela, text="Fechar", bg=COR_PAINEL, fg=COR_TEXTO,
             activebackground="#242b3d", bd=0, relief="flat", cursor="hand2",
             command=janela.destroy,
-        ).grid(row=len(acoes_visiveis) + 1, column=0, columnspan=3, pady=(8, 10))
+        ).grid(row=linha, column=0, columnspan=3, pady=(0, 10))
 
     def _capturar_tecla(self, janela, acao, lbl_tecla):
         texto_original = lbl_tecla.cget("text")

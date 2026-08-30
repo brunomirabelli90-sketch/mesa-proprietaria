@@ -29,6 +29,7 @@ Cada acao disparada e' registrada com data/hora em historico.log.
 """
 import json
 import sys
+import threading
 import time
 from datetime import datetime
 
@@ -64,6 +65,15 @@ DEBOUNCE_S = 0.5
 
 PERFIS = []  # lista de (caminho, config)
 INDICE_PERFIL = 0
+
+CONTADORES = {"compra": 0, "venda": 0, "zerar": 0, "cancelar_zerar": 0}
+
+ULTIMA_ATIVIDADE = time.monotonic()
+
+# callback opcional (sem argumentos), chamado uma vez por acao disparada de
+# verdade (armado) - usado pela interface grafica pra dar um feedback visual
+# alem do beep.
+AO_DISPARAR = None
 
 
 def carregar_config(caminho):
@@ -123,7 +133,7 @@ def pode_disparar(acao):
 
 
 def executar_acao(acao):
-    global ARMADO
+    global ARMADO, ULTIMA_ATIVIDADE
 
     if not pode_disparar(acao):
         return
@@ -134,6 +144,9 @@ def executar_acao(acao):
         IMPRIMIR(f"[{acao}] ignorado: autoclicker desarmado (pressione "
                  f"{config['hotkeys']['armar_desarmar'].upper()} para armar).")
         return
+
+    ULTIMA_ATIVIDADE = time.monotonic()
+    CONTADORES[acao] = CONTADORES.get(acao, 0) + 1
 
     simulacao = config.get("modo_simulacao", True)
     delay_s = config.get("delay_entre_cliques_ms", 80) / 1000.0
@@ -171,14 +184,55 @@ def executar_acao(acao):
         time.sleep(delay_s)
 
     _beep()
+    if AO_DISPARAR is not None:
+        try:
+            AO_DISPARAR()
+        except Exception:
+            pass
 
 
 def alternar_armado():
-    global ARMADO
+    global ARMADO, ULTIMA_ATIVIDADE
     ARMADO = not ARMADO
+    ULTIMA_ATIVIDADE = time.monotonic()
     estado = "ARMADO" if ARMADO else "desarmado"
     IMPRIMIR(f"\n*** Autoclicker {estado} ***\n")
     registrar_historico(f"Autoclicker {estado}")
+
+
+def verificar_auto_desarme():
+    """Se ARMADO e configurado auto_desarmar_minutos > 0, desarma sozinho
+    apos esse tempo sem nenhum disparo. Chamar periodicamente (GUI usa
+    root.after, CLI usa uma thread daemon - ver main())."""
+    if not ARMADO:
+        return
+    minutos = config_atual().get("auto_desarmar_minutos", 0)
+    if not minutos:
+        return
+    if time.monotonic() - ULTIMA_ATIVIDADE >= minutos * 60:
+        IMPRIMIR(f"\n*** Auto-desarmado por inatividade ({minutos} min) ***\n")
+        registrar_historico(f"Auto-desarmado por inatividade ({minutos} min)")
+        alternar_armado()
+
+
+def resumir_historico(caminho=CAMINHO_LOG):
+    """Le o historico.log e devolve um resumo: {(acao, conta, resultado): contagem}."""
+    import re
+
+    padrao = re.compile(r"\[(\w+)\]\s+([^:]+):\s+(\w+)")
+    contagem = {}
+    try:
+        with open(caminho, "r", encoding="utf-8") as f:
+            for linha in f:
+                m = padrao.search(linha)
+                if not m:
+                    continue
+                acao, conta, resultado = m.group(1), m.group(2).strip(), m.group(3)
+                chave = (acao, conta, resultado)
+                contagem[chave] = contagem.get(chave, 0) + 1
+    except FileNotFoundError:
+        pass
+    return contagem
 
 
 def alternar_modo_simulacao():
@@ -247,8 +301,16 @@ def main():
 
     _registrar_hotkeys_cli()
 
+    def _watchdog_auto_desarme():
+        while True:
+            time.sleep(30)
+            verificar_auto_desarme()
+
+    threading.Thread(target=_watchdog_auto_desarme, daemon=True).start()
+
     print(f"Pressione {hotkeys['sair'].upper()} para sair.")
     keyboard.wait(hotkeys["sair"])
+    print(f"Disparos nesta sessao: {CONTADORES}")
     print("Encerrado.")
 
 

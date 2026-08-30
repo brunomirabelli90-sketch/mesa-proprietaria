@@ -55,6 +55,11 @@ ficar erradas — recalibre nesse caso.
 6. Só depois de validar, edite `config.json` e mude
    `"modo_simulacao"` para `false` para os cliques passarem a ser reais.
 
+Rodando `calibrar.py` de novo com um `config.json` já existente, além de
+"adicionar contas" (`a`) ou "começar do zero" (`z`), tem a opção
+**recalibrar uma conta existente** (`r`) — escolhe qual conta pelo nome ou
+número, refaz só os botões dela, e as outras contas ficam intactas.
+
 ## Hotkeys padrão (editáveis em `config.json`)
 
 | Tecla | Ação                         |
@@ -90,7 +95,22 @@ cor) é registrada com data/hora em `historico.log`, na mesma pasta. Formato:
 ```
 
 Esse arquivo só cresce (nunca é apagado automaticamente) — pode abrir com
-qualquer editor de texto pra conferir o que foi disparado e quando.
+qualquer editor de texto pra conferir o que foi disparado e quando. Na
+interface gráfica tem os botões **"Ver histórico completo"** (abre o
+`historico.log` no programa padrão do Windows) e **"Resumo do histórico"**
+(mostra numa janela quantos disparos/pulos aconteceram por conta e ação, sem
+precisar vasculhar o arquivo bruto).
+
+## Contador de disparos e auto-desarme por inatividade
+
+O painel mostra, em tempo real, quantas vezes cada ação (compra/venda/zerar/
+cancelar+zerar) foi disparada desde que o programa abriu ("Disparos na
+sessão"). No modo terminal esse total aparece ao sair (F12).
+
+Pra evitar esquecer o autoclicker armado numa pausa, dá pra configurar
+`"auto_desarmar_minutos"` no `config.json` (ou no campo correspondente na
+tela de Configurações da interface gráfica) — depois desse tempo sem
+nenhum disparo, ele desarma sozinho. `0` (padrão) desativa.
 
 ## Verificação de cor antes de clicar
 
@@ -141,13 +161,22 @@ python autoclicker_gui.py [config1.json] [config2.json ...]
 Mesmas regras de licença, modo simulação, armar/desarmar e perfis do modo
 terminal — só muda a apresentação.
 
+Checkbox **"Sempre no topo"** mantém o painel visível por cima das janelas
+do Profit, sem precisar clicar nele antes de usar os botões. O painel de
+status também pisca rapidamente a cada disparo (além do beep), como
+confirmação visual de que a ação saiu.
+
 ### Trocar os atalhos pela própria interface
 
-Botão **"Configurações (atalhos)"** no painel abre uma tela listando cada
+Botão **"Configurações (atalhos e tempos)"** no painel abre uma tela listando cada
 ação e a tecla atual. Clica em **Alterar**, aperta a tecla nova, e pronto —
 já salva no `config.json` e o atalho passa a valer na hora, sem precisar
 fechar o programa nem editar arquivo nenhum. Se a tecla escolhida já
 estiver em uso por outra ação, ele avisa e não troca.
+
+Na mesma tela tem campos pra **delay entre cliques (ms)** e **auto-desarmar
+após (minutos)** — edita o número e clica em "Salvar tempos" pra aplicar
+sem precisar do Bloco de Notas.
 
 ## Som de confirmação
 

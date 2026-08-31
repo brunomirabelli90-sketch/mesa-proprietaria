@@ -16,6 +16,25 @@ import pywintypes
 NOME_ARQUIVO = "Painel BMT Leilao.xlsx"
 
 
+def _paranum(valor):
+    """Alguns campos do RTD do Profit vem como texto ja formatado (ex:
+    "173.157" usando ponto como separador de milhar, ao inves do numero
+    173157), dependendo do formato da celula. Converte pro numero real;
+    se nao for possivel, devolve None (o painel trata como sem dado)."""
+    if valor is None:
+        return None
+    if isinstance(valor, (int, float)):
+        return float(valor)
+    texto = str(valor).strip()
+    if not texto:
+        return None
+    texto = texto.replace(".", "").replace(",", ".")
+    try:
+        return float(texto)
+    except ValueError:
+        return None
+
+
 def conectar_workbook(nome_arquivo=NOME_ARQUIVO):
     """Acha o Workbook desse nome numa instancia do Excel ja aberta.
     Retorna None se o Excel nao estiver aberto ou o arquivo nao estiver
@@ -56,12 +75,12 @@ def ler_dados(workbook):
         return None
 
     return {
-        "fechamento": fechamento,
-        "ajuste": ajuste,
-        "teorico": teorico,
-        "vwap_mensal": vwap_mensal,
-        "vwap_semanal": vwap_semanal,
-        "sp500": sp500,
-        "nasdaq": nasdaq,
-        "dow": dow,
+        "fechamento": _paranum(fechamento),
+        "ajuste": _paranum(ajuste),
+        "teorico": _paranum(teorico),
+        "vwap_mensal": _paranum(vwap_mensal),
+        "vwap_semanal": _paranum(vwap_semanal),
+        "sp500": _paranum(sp500),
+        "nasdaq": _paranum(nasdaq),
+        "dow": _paranum(dow),
     }

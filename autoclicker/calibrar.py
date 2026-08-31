@@ -133,6 +133,37 @@ def recalibrar_uma_conta(config_existente):
     print(f"\n{ARQUIVO_CONFIG} atualizado - '{nome}' recalibrada, as demais contas ficaram como estavam.")
 
 
+def deletar_uma_conta(config_existente):
+    boletas = config_existente["boletas"]
+    nomes = [b.get("nome") for b in boletas]
+    print("Contas existentes:")
+    for i, nome in enumerate(nomes, start=1):
+        print(f"  {i}. {nome}")
+
+    escolha = input("Qual conta deletar (numero ou nome)? ").strip()
+    indice = None
+    if escolha.isdigit() and 1 <= int(escolha) <= len(boletas):
+        indice = int(escolha) - 1
+    elif escolha in nomes:
+        indice = nomes.index(escolha)
+
+    if indice is None:
+        print("Conta nao encontrada.")
+        sys.exit(1)
+
+    nome = nomes[indice]
+    confirma = input(f"Tem certeza que quer deletar '{nome}'? (s/n): ").strip().lower()
+    if confirma != "s":
+        print("Cancelado, nada foi alterado.")
+        return
+
+    boletas.pop(indice)
+    with open(ARQUIVO_CONFIG, "w", encoding="utf-8") as f:
+        json.dump(config_existente, f, indent=2, ensure_ascii=False)
+    print(f"\n{ARQUIVO_CONFIG} atualizado - '{nome}' removida, restam "
+          f"{len(boletas)} conta(s): {[b.get('nome') for b in boletas]}")
+
+
 def main():
     config_existente = None
     if os.path.exists(ARQUIVO_CONFIG):
@@ -141,12 +172,16 @@ def main():
         nomes = [b.get("nome") for b in config_existente.get("boletas", [])]
         print(f"Ja existe um {ARQUIVO_CONFIG} com {len(nomes)} conta(s): {nomes}")
         resp = input(
-            "Adicionar novas contas a ele (a), recalibrar uma conta existente (r) "
-            "ou comecar do zero (z)? [a/r/z]: "
+            "Adicionar novas contas a ele (a), recalibrar uma conta existente (r), "
+            "deletar uma conta (d) ou comecar do zero (z)? [a/r/d/z]: "
         ).strip().lower()
 
         if resp == "r":
             recalibrar_uma_conta(config_existente)
+            return
+
+        if resp == "d":
+            deletar_uma_conta(config_existente)
             return
 
         if resp != "z":

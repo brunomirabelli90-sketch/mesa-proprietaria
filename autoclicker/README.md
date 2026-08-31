@@ -56,9 +56,11 @@ ficar erradas — recalibre nesse caso.
    `"modo_simulacao"` para `false` para os cliques passarem a ser reais.
 
 Rodando `calibrar.py` de novo com um `config.json` já existente, além de
-"adicionar contas" (`a`) ou "começar do zero" (`z`), tem a opção
-**recalibrar uma conta existente** (`r`) — escolhe qual conta pelo nome ou
-número, refaz só os botões dela, e as outras contas ficam intactas.
+"adicionar contas" (`a`) ou "começar do zero" (`z`), tem:
+- **recalibrar uma conta existente** (`r`) — escolhe qual conta pelo nome ou
+  número, refaz só os botões dela, e as outras contas ficam intactas.
+- **deletar uma conta** (`d`) — escolhe qual, pede confirmação (`s`/`n`) e
+  remove ela do `config.json`, mantendo as demais.
 
 ## Hotkeys padrão (editáveis em `config.json`)
 

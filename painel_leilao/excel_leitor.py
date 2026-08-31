@@ -6,7 +6,8 @@ de abrir o arquivo de novo - abrir de novo criaria uma copia sem o link RTD
 ao vivo (as celulas ficariam paradas).
 
 Layout esperado no arquivo (ver README.md pra montar):
-  Aba "WINFUT":  B2=Fechamento Anterior, C2=Aj. Anterior, D2=Preco Teorico
+  Aba "WINFUT":  B2=Fechamento Anterior, C2=Aj. Anterior, D2=Preco Teorico,
+                 E2=VWAP Mensal, F2=VWAP Semanal
   Aba "INDICES": B2=Variacao MESFUT, B3=Variacao MNQFUT, B4=Variacao MYMFUT
 """
 import win32com.client
@@ -45,6 +46,8 @@ def ler_dados(workbook):
         fechamento = aba_winfut.Range("B2").Value
         ajuste = aba_winfut.Range("C2").Value
         teorico = aba_winfut.Range("D2").Value
+        vwap_mensal = aba_winfut.Range("E2").Value
+        vwap_semanal = aba_winfut.Range("F2").Value
 
         sp500 = aba_indices.Range("B2").Value
         nasdaq = aba_indices.Range("B3").Value
@@ -56,6 +59,8 @@ def ler_dados(workbook):
         "fechamento": fechamento,
         "ajuste": ajuste,
         "teorico": teorico,
+        "vwap_mensal": vwap_mensal,
+        "vwap_semanal": vwap_semanal,
         "sp500": sp500,
         "nasdaq": nasdaq,
         "dow": dow,

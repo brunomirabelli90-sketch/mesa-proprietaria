@@ -17,6 +17,10 @@ BlackArrow exportam ao vivo pra um Excel (via RTD).
 - Mostra também **VIX** e **Índice Dólar (DXY)**, vindos do Yahoo Finance
   (não saem nem do Profit nem do BlackArrow) — também só informativo, com
   um pequeno atraso (não é tick a tick, ver seção abaixo).
+- Mostra **VWAP Mensal** e **VWAP Semanal** do WINFUT (vem do Profit, igual
+  Fechamento/Ajuste/Preço Teórico) — só como referência visual, não entra
+  em nenhum cálculo. Se essas duas colunas não estiverem na planilha, o
+  painel mostra "-" nelas e continua funcionando normal.
 
 **Fora da v1** (fica pra depois, quando tiver regra objetiva definida):
 o filtro de "macro" no diário/semanal/mensal.
@@ -38,8 +42,9 @@ pip install -r requirements.txt
 
 2. Renomeia a primeira aba pra **`WINFUT`**. No Profit, com o WINFUT
    aberto: **Exportar em Tempo Real (RTD/DDE)** → marca **RTD** → seleciona
-   as colunas **Fechamento Anterior**, **Aj. Anterior** e **Preço
-   Teórico** → **Copiar**. Cola na célula **A1** dessa aba.
+   as colunas **Fechamento Anterior**, **Aj. Anterior**, **Preço
+   Teórico**, **VWAP Mensal** e **VWAP Semanal** → **Copiar**. Cola na
+   célula **A1** dessa aba.
 
 3. Cria uma segunda aba chamada **`INDICES`**. No BlackArrow, com os
    ativos MESFUT (S&P500), MNQFUT (Nasdaq) e MYMFUT (Dow Jones) abertos:
@@ -50,9 +55,9 @@ pip install -r requirements.txt
    `=RTD(...)` que atualizam sozinhas):
 
    **Aba WINFUT**
-   | Asset  | Fechamento Anterior | Aj. Anterior | Preço Teórico |
-   |--------|---------------------|--------------|----------------|
-   | WINFUT | 177725              | 177822       | 0              |
+   | Asset  | Fechamento Anterior | Aj. Anterior | Preço Teórico | VWAP Mensal | VWAP Semanal |
+   |--------|---------------------|--------------|----------------|-------------|--------------|
+   | WINFUT | 177725              | 177822       | 0              | 176900      | 177400       |
 
    **Aba INDICES**
    | Asset  | Variação |

@@ -114,6 +114,8 @@ class PainelLeilao:
             ("fechamento", "Fechamento Anterior"),
             ("ajuste", "Aj. Anterior"),
             ("teorico", "Preço Teórico"),
+            ("vwap_mensal", "VWAP Mensal"),
+            ("vwap_semanal", "VWAP Semanal"),
             ("gap_fechamento", "Gap (vs Fechamento)"),
             ("gap_ajuste", "Gap (vs Ajuste)"),
         ]):
@@ -260,6 +262,8 @@ class PainelLeilao:
         self.linhas_dados["fechamento"].config(text=self._fmt(dados["fechamento"]), fg=COR_TEXTO)
         self.linhas_dados["ajuste"].config(text=self._fmt(dados["ajuste"]), fg=COR_TEXTO)
         self.linhas_dados["teorico"].config(text=self._fmt(dados["teorico"]), fg=COR_TEXTO)
+        self.linhas_dados["vwap_mensal"].config(text=self._fmt(dados.get("vwap_mensal")), fg=COR_TEXTO)
+        self.linhas_dados["vwap_semanal"].config(text=self._fmt(dados.get("vwap_semanal")), fg=COR_TEXTO)
         self.linhas_dados["gap_fechamento"].config(text=formatar_gap(r["gap_fechamento"]), fg=COR_TEXTO)
         self.linhas_dados["gap_ajuste"].config(text=formatar_gap(r["gap_ajuste"]), fg=COR_TEXTO)
 
@@ -286,7 +290,7 @@ class PainelLeilao:
 
 def main():
     root = tk.Tk()
-    root.geometry("380x640")
+    root.geometry("380x700")
     root.resizable(False, False)
     PainelLeilao(root)
     root.mainloop()

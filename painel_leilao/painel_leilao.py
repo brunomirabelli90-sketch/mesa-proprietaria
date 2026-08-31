@@ -122,6 +122,7 @@ class PainelLeilao:
         self.linhas_dados = {}
         self.rotulos_dados = []  # (label_widget, texto_original)
         for i, (chave, rotulo) in enumerate([
+            ("ultimo", "Preço Atual (Último)"),
             ("fechamento", "Fechamento Anterior"),
             ("ajuste", "Aj. Anterior"),
             ("teorico", "Preço Teórico"),
@@ -270,14 +271,20 @@ class PainelLeilao:
                 lbl.config(text="••••••", fg=COR_TEXTO_FRACO)
             return
 
+        self.linhas_dados["ultimo"].config(text=self._fmt(dados.get("ultimo")), fg=COR_TEXTO)
         self.linhas_dados["fechamento"].config(text=self._fmt(dados["fechamento"]), fg=COR_TEXTO)
         self.linhas_dados["ajuste"].config(text=self._fmt(dados["ajuste"]), fg=COR_TEXTO)
         self.linhas_dados["teorico"].config(text=self._fmt(dados["teorico"]), fg=COR_TEXTO)
-        tendencia_mensal = estrategia.tendencia_vwap(dados.get("teorico"), dados.get("vwap_mensal"))
+
+        # a tendencia usa o preco ATUAL (nao o teorico, que so existe
+        # durante a janela do leilao e fica 0 no resto do pregao) - assim
+        # da pra ver a tendencia vs VWAP o dia inteiro.
+        preco_referencia = dados.get("ultimo")
+        tendencia_mensal = estrategia.tendencia_vwap(preco_referencia, dados.get("vwap_mensal"))
         texto, cor = formatar_vwap(dados.get("vwap_mensal"), tendencia_mensal)
         self.linhas_dados["vwap_mensal"].config(text=texto, fg=cor)
 
-        tendencia_semanal = estrategia.tendencia_vwap(dados.get("teorico"), dados.get("vwap_semanal"))
+        tendencia_semanal = estrategia.tendencia_vwap(preco_referencia, dados.get("vwap_semanal"))
         texto, cor = formatar_vwap(dados.get("vwap_semanal"), tendencia_semanal)
         self.linhas_dados["vwap_semanal"].config(text=texto, fg=cor)
         self.linhas_dados["gap_fechamento"].config(text=formatar_gap(r["gap_fechamento"]), fg=COR_TEXTO)

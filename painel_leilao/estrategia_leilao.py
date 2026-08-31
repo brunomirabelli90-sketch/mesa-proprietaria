@@ -64,16 +64,17 @@ def calcular_sinal(fechamento, ajuste, teorico):
     }
 
 
-def tendencia_vwap(preco_teorico, vwap):
-    """Compara o Preco Teorico com uma VWAP (mensal ou semanal): preco
-    acima da VWAP = tendencia de ALTA, preco abaixo = tendencia de BAIXA.
-    Isso e' so leitura de tendencia (onde o preco esta em relacao a media),
-    sem relacao com o sinal de compra/venda do leilao (que e' baseado no
-    gap contra o fechamento/ajuste anterior)."""
-    if not preco_teorico or not vwap:
+def tendencia_vwap(preco_atual, vwap):
+    """Compara o preco atual do indice com uma VWAP (mensal ou semanal):
+    preco acima da VWAP = tendencia de ALTA, preco abaixo = tendencia de
+    BAIXA. Isso e' so leitura de tendencia (onde o preco esta em relacao a
+    media), sem relacao com o sinal de compra/venda do leilao (que e'
+    baseado no gap do Preco Teorico contra o fechamento/ajuste anterior,
+    e so existe durante a janela do leilao)."""
+    if not preco_atual or not vwap:
         return None
-    if preco_teorico > vwap:
+    if preco_atual > vwap:
         return ALTA
-    if preco_teorico < vwap:
+    if preco_atual < vwap:
         return BAIXA
     return None

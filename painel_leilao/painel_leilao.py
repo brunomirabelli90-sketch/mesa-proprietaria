@@ -286,7 +286,7 @@ class PainelLeilao:
 
 def main():
     root = tk.Tk()
-    root.geometry("380x560")
+    root.geometry("380x640")
     root.resizable(False, False)
     PainelLeilao(root)
     root.mainloop()

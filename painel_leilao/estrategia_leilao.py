@@ -18,6 +18,8 @@ SEM_DADO = "AGUARDANDO"
 COMPRA = "COMPRA"
 VENDA = "VENDA"
 NEUTRO = "NEUTRO"
+ALTA = "ALTA"
+BAIXA = "BAIXA"
 
 
 def direcao(gap):
@@ -60,3 +62,18 @@ def calcular_sinal(fechamento, ajuste, teorico):
         "gap_fechamento": gap_fechamento,
         "gap_ajuste": gap_ajuste,
     }
+
+
+def tendencia_vwap(preco_teorico, vwap):
+    """Compara o Preco Teorico com uma VWAP (mensal ou semanal): preco
+    acima da VWAP = tendencia de ALTA, preco abaixo = tendencia de BAIXA.
+    Isso e' so leitura de tendencia (onde o preco esta em relacao a media),
+    sem relacao com o sinal de compra/venda do leilao (que e' baseado no
+    gap contra o fechamento/ajuste anterior)."""
+    if not preco_teorico or not vwap:
+        return None
+    if preco_teorico > vwap:
+        return ALTA
+    if preco_teorico < vwap:
+        return BAIXA
+    return None

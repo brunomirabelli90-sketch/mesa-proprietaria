@@ -48,6 +48,17 @@ def formatar_gap(gap):
     return f"{sinal}{gap:.0f} pts"
 
 
+def formatar_vwap(valor, tendencia):
+    if valor is None:
+        return "-", COR_TEXTO_FRACO
+    texto = f"{valor:.0f}"
+    if tendencia == estrategia.ALTA:
+        return f"{texto} ALTA", COR_VERDE
+    if tendencia == estrategia.BAIXA:
+        return f"{texto} BAIXA", COR_VERMELHO
+    return texto, COR_TEXTO
+
+
 def formatar_variacao(valor):
     if valor is None:
         return "-", COR_TEXTO_FRACO
@@ -128,7 +139,7 @@ class PainelLeilao:
 
             lbl_valor = tk.Label(
                 dados_frame, text="-", font=("Consolas", 11, "bold"),
-                bg=COR_PAINEL, fg=COR_TEXTO, anchor="e", width=14,
+                bg=COR_PAINEL, fg=COR_TEXTO, anchor="e", width=18,
             )
             lbl_valor.grid(row=i, column=1, sticky="e", padx=(4, 10), pady=3)
             self.linhas_dados[chave] = lbl_valor
@@ -262,8 +273,13 @@ class PainelLeilao:
         self.linhas_dados["fechamento"].config(text=self._fmt(dados["fechamento"]), fg=COR_TEXTO)
         self.linhas_dados["ajuste"].config(text=self._fmt(dados["ajuste"]), fg=COR_TEXTO)
         self.linhas_dados["teorico"].config(text=self._fmt(dados["teorico"]), fg=COR_TEXTO)
-        self.linhas_dados["vwap_mensal"].config(text=self._fmt(dados.get("vwap_mensal")), fg=COR_TEXTO)
-        self.linhas_dados["vwap_semanal"].config(text=self._fmt(dados.get("vwap_semanal")), fg=COR_TEXTO)
+        tendencia_mensal = estrategia.tendencia_vwap(dados.get("teorico"), dados.get("vwap_mensal"))
+        texto, cor = formatar_vwap(dados.get("vwap_mensal"), tendencia_mensal)
+        self.linhas_dados["vwap_mensal"].config(text=texto, fg=cor)
+
+        tendencia_semanal = estrategia.tendencia_vwap(dados.get("teorico"), dados.get("vwap_semanal"))
+        texto, cor = formatar_vwap(dados.get("vwap_semanal"), tendencia_semanal)
+        self.linhas_dados["vwap_semanal"].config(text=texto, fg=cor)
         self.linhas_dados["gap_fechamento"].config(text=formatar_gap(r["gap_fechamento"]), fg=COR_TEXTO)
         self.linhas_dados["gap_ajuste"].config(text=formatar_gap(r["gap_ajuste"]), fg=COR_TEXTO)
 
@@ -290,7 +306,7 @@ class PainelLeilao:
 
 def main():
     root = tk.Tk()
-    root.geometry("380x700")
+    root.geometry("440x700")
     root.resizable(False, False)
     PainelLeilao(root)
     root.mainloop()

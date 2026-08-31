@@ -15,6 +15,7 @@ import tkinter as tk
 
 import excel_leitor
 import estrategia_leilao as estrategia
+import mercado_externo
 
 CAMINHO_ICONE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "icone.ico")
 
@@ -155,6 +156,13 @@ class PainelLeilao:
         self.lbl_nasdaq = self._criar_bloco_indice(externos_frame, "Nasdaq")
         self.lbl_dow = self._criar_bloco_indice(externos_frame, "Dow Jones")
 
+        externos_frame2 = tk.Frame(root, bg=COR_FUNDO)
+        externos_frame2.pack(fill="x", padx=16, pady=(0, 16))
+
+        self.lbl_vix = self._criar_bloco_indice(externos_frame2, "VIX")
+        self.lbl_dxy = self._criar_bloco_indice(externos_frame2, "Índice Dólar")
+
+        mercado_externo.iniciar()
         self._agendar_atualizacao()
 
     def _criar_bloco_indice(self, container, nome, destaque=False):
@@ -192,6 +200,8 @@ class PainelLeilao:
             return
 
         self.lbl_status_conexao.config(text="● conectado", fg=COR_VERDE)
+
+        dados.update(mercado_externo.obter_ultimo())
 
         resultado = estrategia.calcular_sinal(
             dados["fechamento"], dados["ajuste"], dados["teorico"]
@@ -254,12 +264,16 @@ class PainelLeilao:
         self.linhas_dados["gap_ajuste"].config(text=formatar_gap(r["gap_ajuste"]), fg=COR_TEXTO)
 
     def _atualizar_indices(self, dados):
+        blocos = (
+            (self.lbl_sp500, "sp500"), (self.lbl_nasdaq, "nasdaq"), (self.lbl_dow, "dow"),
+            (self.lbl_vix, "vix"), (self.lbl_dxy, "dxy"),
+        )
         if self.var_modo_live.get():
-            for lbl in (self.lbl_sp500, self.lbl_nasdaq, self.lbl_dow):
+            for lbl, _ in blocos:
                 lbl.config(text="••••", fg=COR_TEXTO_FRACO)
             return
 
-        for lbl, chave in ((self.lbl_sp500, "sp500"), (self.lbl_nasdaq, "nasdaq"), (self.lbl_dow, "dow")):
+        for lbl, chave in blocos:
             texto, cor = formatar_variacao(dados.get(chave))
             lbl.config(text=texto, fg=cor)
 

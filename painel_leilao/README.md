@@ -14,9 +14,11 @@ BlackArrow exportam ao vivo pra um Excel (via RTD).
   validada.
 - Mostra a variação do S&P500 (destaque), Nasdaq e Dow Jones, também só
   informativo, pra correlacionar visualmente.
+- Mostra também **VIX** e **Índice Dólar (DXY)**, vindos do Yahoo Finance
+  (não saem nem do Profit nem do BlackArrow) — também só informativo, com
+  um pequeno atraso (não é tick a tick, ver seção abaixo).
 
 **Fora da v1** (fica pra depois, quando tiver regra objetiva definida):
-DXY (não sai nem do Profit nem do BlackArrow, precisaria de fonte externa) e
 o filtro de "macro" no diário/semanal/mensal.
 
 ## Requisitos
@@ -83,6 +85,20 @@ console atrás e com o nome/ícone certo na barra de tarefas (rodar
 O painel atualiza sozinho a cada 1,5s. Se não achar o Excel aberto, mostra
 "Excel não encontrado" e fica tentando reconectar sem precisar reiniciar o
 programa.
+
+### VIX e Índice Dólar (DXY)
+
+Esses dois não vêm do Excel — são buscados direto do Yahoo Finance
+(biblioteca `yfinance`), porque nem o Profit nem o BlackArrow exportam
+DXY, e o VIX não estava sendo puxado por RTD. Rodam num loop separado, a
+cada 60s (`mercado_externo.INTERVALO_ATUALIZACAO_S`), e não travam o painel
+esperando rede — o ciclo de 1,5s só lê o último valor já buscado.
+
+Por serem dados gratuitos do Yahoo, têm um atraso de alguns minutos (não é
+tempo real tick a tick). Isso é aceitável porque são só informativos, igual
+S&P500/Nasdaq/Dow — não entram no cálculo do sinal de compra/venda.
+Precisa de internet liberada na máquina pra esses dois funcionarem; se não
+tiver, o painel continua funcionando normal, só mostra "-" nesses campos.
 
 ### Modo live (esconder a estratégia)
 

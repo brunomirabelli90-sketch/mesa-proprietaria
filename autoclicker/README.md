@@ -82,20 +82,29 @@ você pressionar F9. Isso evita disparo acidental ao testar outras teclas.
 
 ## Apregoar (ordem a preço específico, replicada nas outras contas)
 
-Diferente de Compra/Venda (que clicam direto no botão de mercado), o
-"Apregoar" replica uma ordem com **preço digitado**: você digita o preço
-normalmente na sua boleta de sempre (a "conta mestre"), e ao pressionar
-**F5** (compra) ou **F6** (venda) o autoclicker copia esse preço (Ctrl+A,
-Ctrl+C no campo) e cola (Ctrl+V) + clica Compra/Venda em **todas as outras
-contas** — a conta mestre fica de fora, você manda a ordem dela manualmente
-como sempre fez.
+Diferente de Compra/Venda (que clicam direto no botão de **mercado**, ex:
+"C Mercado"/"V Mercado"), o "Apregoar" replica uma ordem com **preço
+digitado**, usando os botões próprios pra isso na boleta (ex: "C Stop" pra
+compra, "V Limite" pra venda — o nome exato varia, mas são botões
+**diferentes** dos de mercado). Você digita o preço normalmente na sua
+boleta de sempre (a "conta mestre"), e ao pressionar **F5** (compra) ou
+**F6** (venda) o autoclicker copia esse preço (Ctrl+A, Ctrl+C no campo) e
+cola (Ctrl+V) + clica o botão de preço em **todas as outras contas** — a
+conta mestre fica de fora, você manda a ordem dela manualmente como sempre
+fez.
 
-Pra usar, precisa calibrar um botão a mais em cada conta: **`campo_preco`**,
-a posição do campo onde você digita o preço na boleta (pedido junto com
-compra/venda/zerar/cancelar_zerar no `calibrar.py` — F7 pula se a conta não
-usa essa função). A **conta mestre** (de onde ele copia) é escolhida
-automaticamente como a primeira conta com `campo_preco` calibrado; pra
-forçar outra, edita o `config.json` e adiciona:
+Pra usar, precisa calibrar **três** pontos a mais em cada conta (pedidos
+junto com compra/venda/zerar/cancelar_zerar no `calibrar.py` — F7 pula os
+que a conta não usa):
+- **`campo_preco`** — o campo onde você digita o preço na boleta.
+- **`apregoar_compra`** — o botão de compra a preço (ex: "C Stop"). **Não**
+  é o mesmo botão calibrado em `compra` (que é o de mercado).
+- **`apregoar_venda`** — o botão de venda a preço (ex: "V Limite"). Também
+  **não** é o mesmo de `venda`.
+
+A **conta mestre** (de onde ele copia o preço) é escolhida automaticamente
+como a primeira conta com `campo_preco` calibrado; pra forçar outra, edita
+o `config.json` e adiciona:
 ```json
 "conta_mestre": "NomeDaConta"
 ```
@@ -107,9 +116,10 @@ Cuidados:
   de texto e digitar em várias janelas em sequência, não só clicar num
   ponto fixo. **Teste bastante em modo simulação** antes de usar em conta
   real, e considere manter `verificar_cor: true` ligado (ele confere a cor
-  do botão Compra/Venda antes de clicar, não a do campo de preço).
-- Contas sem `campo_preco` calibrado são puladas automaticamente (aparece
-  no log), sem travar o disparo nas demais.
+  do botão de preço antes de clicar, não a do campo de texto).
+- Contas sem `campo_preco`/`apregoar_compra`/`apregoar_venda` calibrados
+  são puladas automaticamente (aparece no log), sem travar o disparo nas
+  demais.
 
 ## Segurança
 

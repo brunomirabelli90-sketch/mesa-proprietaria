@@ -17,7 +17,18 @@ import pyautogui
 
 TECLA_CAPTURA = "f8"
 TECLA_PULAR = "f7"
-BOTOES_PADRAO = ["compra", "venda", "zerar", "cancelar_zerar", "campo_preco"]
+BOTOES_PADRAO = [
+    "compra", "venda", "zerar", "cancelar_zerar",
+    "campo_preco", "apregoar_compra", "apregoar_venda",
+]
+
+# dica mostrada ao pedir cada botao - so pros 3 novos (relacionados ao
+# "apregoar"), que sao facil de confundir com os botoes de mercado normais.
+DICAS_BOTAO = {
+    "campo_preco": "campo onde voce digita o preco (ex: 'Preco')",
+    "apregoar_compra": "botao de COMPRA a preco (ex: 'C Stop') - NAO e' o 'C Mercado'",
+    "apregoar_venda": "botao de VENDA a preco (ex: 'V Limite') - NAO e' o 'V Mercado'",
+}
 DEBOUNCE_CAPTURA_S = 0.4
 ARQUIVO_CONFIG = "config.json"
 
@@ -67,6 +78,13 @@ def capturar_posicao(rotulo):
         return {"pos": [x, y], "cor": cor}
 
 
+def _rotulo_botao(nome, botao):
+    dica = DICAS_BOTAO.get(botao)
+    if dica:
+        return f"{nome} / {botao} ({dica})"
+    return f"{nome} / {botao}"
+
+
 def calibrar_contas(n_contas, inicio=1):
     boletas = []
     for i in range(inicio, inicio + n_contas):
@@ -74,7 +92,7 @@ def calibrar_contas(n_contas, inicio=1):
         print(f"\nCalibrando '{nome}'")
         botoes = {}
         for botao in BOTOES_PADRAO:
-            pos = capturar_posicao(f"{nome} / {botao}")
+            pos = capturar_posicao(_rotulo_botao(nome, botao))
             if pos is not None:
                 botoes[botao] = pos
         boletas.append({"nome": nome, "botoes": botoes})
@@ -125,7 +143,7 @@ def recalibrar_uma_conta(config_existente):
     print(f"\nRecalibrando '{nome}'")
     botoes = {}
     for botao in BOTOES_PADRAO:
-        pos = capturar_posicao(f"{nome} / {botao}")
+        pos = capturar_posicao(_rotulo_botao(nome, botao))
         if pos is not None:
             botoes[botao] = pos
     boletas[indice]["botoes"] = botoes

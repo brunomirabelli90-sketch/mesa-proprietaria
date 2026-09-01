@@ -268,10 +268,15 @@ def executar_apregoar(direcao):
         nome = boleta.get("nome", "?")
         botoes = boleta.get("botoes", {})
         valor_campo = botoes.get("campo_preco")
-        valor_acao = botoes.get(direcao)
+        # o botao do apregoar (ex: "C Stop"/"V Limite") e' diferente do
+        # botao de mercado (ex: "C Mercado"/"V Mercado") usado por
+        # executar_acao - por isso e' uma chave propria, "apregoar_{direcao}",
+        # e nao a mesma chave "compra"/"venda".
+        chave_botao = f"apregoar_{direcao}"
+        valor_acao = botoes.get(chave_botao)
 
         if valor_campo is None or valor_acao is None:
-            IMPRIMIR(f"  - {nome}: sem 'campo_preco' ou '{direcao}' cadastrado, pulando.")
+            IMPRIMIR(f"  - {nome}: sem 'campo_preco' ou '{chave_botao}' cadastrado, pulando.")
             continue
 
         pos_campo, _ = obter_pos_cor(valor_campo)
@@ -279,7 +284,7 @@ def executar_apregoar(direcao):
         xa, ya = pos_acao
 
         if verificar_cor and not simulacao and not cor_bate(pos_acao, cor_esperada, tolerancia_cor):
-            IMPRIMIR(f"  - {nome}: cor no botao '{direcao}' ({xa}, {ya}) mudou, pulando "
+            IMPRIMIR(f"  - {nome}: cor no botao '{chave_botao}' ({xa}, {ya}) mudou, pulando "
                      "(layout pode ter mudado - recalibre se persistir).")
             registrar_historico(f"[{acao}] {nome}: PULADO (cor nao bate em {xa},{ya})")
             continue

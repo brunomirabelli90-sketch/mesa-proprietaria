@@ -15,6 +15,12 @@ import pywintypes
 
 NOME_ARQUIVO = "Painel BMT Leilao.xlsx"
 
+# Alem do erro COM "normal" (pywintypes.com_error), o win32com as vezes
+# levanta AttributeError quando o Excel esta num estado transitorio (ainda
+# abrindo, atualizando um link RTD, mostrando algum aviso) - tratamos os
+# dois igual: "nao esta pronto agora", tenta de novo no proximo ciclo.
+ERROS_EXCEL_INDISPONIVEL = (pywintypes.com_error, AttributeError)
+
 
 def _paranum(valor):
     """Alguns campos do RTD do Profit vem como texto ja formatado (ex:
@@ -49,7 +55,7 @@ def conectar_workbook(nome_arquivo=NOME_ARQUIVO):
         for wb in excel.Workbooks:
             if wb.Name == nome_arquivo:
                 return wb
-    except pywintypes.com_error:
+    except ERROS_EXCEL_INDISPONIVEL:
         return None
 
     return None
@@ -72,7 +78,7 @@ def ler_dados(workbook):
         sp500 = aba_indices.Range("B2").Value
         nasdaq = aba_indices.Range("B3").Value
         dow = aba_indices.Range("B4").Value
-    except pywintypes.com_error:
+    except ERROS_EXCEL_INDISPONIVEL:
         return None
 
     return {

@@ -70,6 +70,8 @@ Rodando `calibrar.py` de novo com um `config.json` já existente, além de
 | F2    | Venda em todas as contas     |
 | F3    | Zerar em todas as contas     |
 | F4    | Cancelar ordens + zerar      |
+| F5    | Apregoar Compra (ver seção abaixo) |
+| F6    | Apregoar Venda (ver seção abaixo) |
 | F9    | Armar / desarmar             |
 | F10   | Trocar perfil (só com múltiplos configs) |
 | F11   | Alternar modo simulação / real |
@@ -77,6 +79,37 @@ Rodando `calibrar.py` de novo com um `config.json` já existente, além de
 
 O autoclicker sempre começa **desarmado**: hotkeys de ação são ignoradas até
 você pressionar F9. Isso evita disparo acidental ao testar outras teclas.
+
+## Apregoar (ordem a preço específico, replicada nas outras contas)
+
+Diferente de Compra/Venda (que clicam direto no botão de mercado), o
+"Apregoar" replica uma ordem com **preço digitado**: você digita o preço
+normalmente na sua boleta de sempre (a "conta mestre"), e ao pressionar
+**F5** (compra) ou **F6** (venda) o autoclicker copia esse preço (Ctrl+A,
+Ctrl+C no campo) e cola (Ctrl+V) + clica Compra/Venda em **todas as outras
+contas** — a conta mestre fica de fora, você manda a ordem dela manualmente
+como sempre fez.
+
+Pra usar, precisa calibrar um botão a mais em cada conta: **`campo_preco`**,
+a posição do campo onde você digita o preço na boleta (pedido junto com
+compra/venda/zerar/cancelar_zerar no `calibrar.py` — F7 pula se a conta não
+usa essa função). A **conta mestre** (de onde ele copia) é escolhida
+automaticamente como a primeira conta com `campo_preco` calibrado; pra
+forçar outra, edita o `config.json` e adiciona:
+```json
+"conta_mestre": "NomeDaConta"
+```
+
+Cuidados:
+- Isso usa a área de transferência (Ctrl+C/Ctrl+V) do Windows — durante o
+  disparo, o que estiver copiado ali antes é substituído temporariamente.
+- É mais arriscado que os botões normais porque envolve clicar num campo
+  de texto e digitar em várias janelas em sequência, não só clicar num
+  ponto fixo. **Teste bastante em modo simulação** antes de usar em conta
+  real, e considere manter `verificar_cor: true` ligado (ele confere a cor
+  do botão Compra/Venda antes de clicar, não a do campo de preço).
+- Contas sem `campo_preco` calibrado são puladas automaticamente (aparece
+  no log), sem travar o disparo nas demais.
 
 ## Segurança
 

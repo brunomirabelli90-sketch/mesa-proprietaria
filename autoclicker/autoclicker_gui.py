@@ -33,9 +33,19 @@ NOMES_ACAO = {
     "venda": "Venda",
     "zerar": "Zerar",
     "cancelar_zerar": "Cancelar + Zerar",
+    "apregoar_compra": "Apregoar Compra",
+    "apregoar_venda": "Apregoar Venda",
     "armar_desarmar": "Armar / Desarmar",
     "trocar_perfil": "Trocar perfil",
     "alternar_modo_simulacao": "Modo Simulacao / Real",
+}
+
+# fallback pros hotkeys novos em configs antigos (calibrados antes dessa
+# funcionalidade existir, que por isso nao tem essas chaves em "hotkeys").
+HOTKEYS_PADRAO_EXTRAS = {
+    "alternar_modo_simulacao": "f11",
+    "apregoar_compra": "f5",
+    "apregoar_venda": "f6",
 }
 
 
@@ -107,7 +117,16 @@ class App:
                   command=lambda: self.disparar("cancelar_zerar"), **self.estilo_botao
                   ).grid(row=2, column=1, padx=2, pady=2)
 
-        linha_extra = 3
+        tk.Button(botoes, text="Apregoar Compra (F5)", width=17,
+                  bg="#8a5a00", fg="white", activebackground="#a56d00",
+                  command=lambda: self.disparar_apregoar("compra"), **self.estilo_botao
+                  ).grid(row=3, column=0, padx=2, pady=2)
+        tk.Button(botoes, text="Apregoar Venda (F6)", width=17,
+                  bg="#155c33", fg="white", activebackground="#1c7141",
+                  command=lambda: self.disparar_apregoar("venda"), **self.estilo_botao
+                  ).grid(row=3, column=1, padx=2, pady=2)
+
+        linha_extra = 4
 
         if len(core.PERFIS) > 1:
             tk.Button(
@@ -244,6 +263,10 @@ class App:
         core.executar_acao(acao)
         self._atualizar_status()
 
+    def disparar_apregoar(self, direcao):
+        core.executar_apregoar(direcao)
+        self._atualizar_status()
+
     def trocar_perfil(self):
         core.trocar_perfil()
         self._atualizar_status()
@@ -259,14 +282,17 @@ class App:
             return self.alternar_modo
         if acao == "trocar_perfil":
             return self.trocar_perfil
+        if acao.startswith("apregoar_"):
+            direcao = acao.split("_", 1)[1]
+            return lambda d=direcao: self.disparar_apregoar(d)
         return lambda a=acao: self.disparar(a)
 
     def _registrar_hotkeys(self):
         hotkeys = core.config_atual()["hotkeys"]
 
         for acao in ("compra", "venda", "zerar", "cancelar_zerar", "armar_desarmar",
-                     "alternar_modo_simulacao"):
-            tecla = hotkeys.get(acao) or ("f11" if acao == "alternar_modo_simulacao" else None)
+                     "alternar_modo_simulacao", "apregoar_compra", "apregoar_venda"):
+            tecla = hotkeys.get(acao) or HOTKEYS_PADRAO_EXTRAS.get(acao)
             if tecla:
                 self._vincular(acao, tecla)
 
@@ -310,7 +336,7 @@ class App:
         self._labels_tecla = {}
 
         for i, acao in enumerate(acoes_visiveis, start=1):
-            tecla = hotkeys.get(acao, "f11" if acao == "alternar_modo_simulacao" else "?")
+            tecla = hotkeys.get(acao) or HOTKEYS_PADRAO_EXTRAS.get(acao, "?")
             tk.Label(
                 janela, text=NOMES_ACAO[acao], bg=COR_FUNDO, fg=COR_TEXTO,
                 font=("Segoe UI", 10), anchor="w", width=22,

@@ -66,7 +66,14 @@ DEBOUNCE_S = 0.5
 PERFIS = []  # lista de (caminho, config)
 INDICE_PERFIL = 0
 
-CONTADORES = {"compra": 0, "venda": 0, "zerar": 0, "cancelar_zerar": 0}
+CONTADORES = {
+    "compra": 0, "venda": 0, "zerar": 0, "cancelar_zerar": 0,
+    "apregoar_compra": 0, "apregoar_venda": 0,
+}
+
+# fallback pros hotkeys novos em configs antigos (calibrados antes dessa
+# funcionalidade existir, que por isso nao tem essas chaves em "hotkeys").
+HOTKEYS_PADRAO_EXTRAS = {"apregoar_compra": "f5", "apregoar_venda": "f6"}
 
 ULTIMA_ATIVIDADE = time.monotonic()
 
@@ -191,6 +198,118 @@ def executar_acao(acao):
             pass
 
 
+def _boleta_mestre_apregoar(config):
+    """A conta 'mestre' e' aquela onde voce digita o preco manualmente - o
+    autoclicker copia dela e cola nas outras. Por padrao e' a primeira
+    conta com 'campo_preco' calibrado; da pra forcar outra colocando
+    "conta_mestre": "NomeDaConta" no config.json."""
+    boletas = config["boletas"]
+    nome_mestre = config.get("conta_mestre")
+    if nome_mestre:
+        for b in boletas:
+            if b.get("nome") == nome_mestre:
+                return b
+    for b in boletas:
+        if b.get("botoes", {}).get("campo_preco") is not None:
+            return b
+    return None
+
+
+def executar_apregoar(direcao):
+    """Copia o preco que voce digitou na boleta mestre (Ctrl+A, Ctrl+C) e
+    cola (Ctrl+V) + clica '{direcao}' em todas as OUTRAS contas. A conta
+    mestre fica de fora do disparo - voce manda a ordem dela manualmente,
+    como sempre fez; isso so replica pras demais."""
+    global ULTIMA_ATIVIDADE
+
+    acao = f"apregoar_{direcao}"
+    if not pode_disparar(acao):
+        return
+
+    config = config_atual()
+
+    if not ARMADO:
+        IMPRIMIR(f"[{acao}] ignorado: autoclicker desarmado (pressione "
+                 f"{config['hotkeys']['armar_desarmar'].upper()} para armar).")
+        return
+
+    boleta_mestre = _boleta_mestre_apregoar(config)
+    if boleta_mestre is None:
+        IMPRIMIR(f"[{acao}] nenhuma conta com 'campo_preco' calibrado - "
+                 "recalibre a conta que voce usa pra digitar o preco (calibrar.py, opcao 'r').")
+        return
+
+    valor_campo_mestre = boleta_mestre["botoes"]["campo_preco"]
+    pos_campo_mestre, _ = obter_pos_cor(valor_campo_mestre)
+
+    ULTIMA_ATIVIDADE = time.monotonic()
+    CONTADORES[acao] = CONTADORES.get(acao, 0) + 1
+
+    simulacao = config.get("modo_simulacao", True)
+    delay_s = config.get("delay_entre_cliques_ms", 80) / 1000.0
+    verificar_cor = config.get("verificar_cor", False)
+    tolerancia_cor = config.get("tolerancia_cor", 30)
+
+    outras = [b for b in config["boletas"] if b is not boleta_mestre]
+    IMPRIMIR(f"[{acao}] copiando preco de '{boleta_mestre.get('nome')}' e replicando "
+             f"em {len(outras)} outra(s) conta(s) ({'SIMULACAO' if simulacao else 'REAL'})...")
+
+    if simulacao:
+        IMPRIMIR(f"  - copiaria o preco do campo em {tuple(pos_campo_mestre)} (conta mestre)")
+    else:
+        pyautogui.click(*pos_campo_mestre)
+        time.sleep(delay_s)
+        keyboard.send("ctrl+a")
+        time.sleep(delay_s)
+        keyboard.send("ctrl+c")
+        time.sleep(delay_s)
+
+    for boleta in outras:
+        nome = boleta.get("nome", "?")
+        botoes = boleta.get("botoes", {})
+        valor_campo = botoes.get("campo_preco")
+        valor_acao = botoes.get(direcao)
+
+        if valor_campo is None or valor_acao is None:
+            IMPRIMIR(f"  - {nome}: sem 'campo_preco' ou '{direcao}' cadastrado, pulando.")
+            continue
+
+        pos_campo, _ = obter_pos_cor(valor_campo)
+        pos_acao, cor_esperada = obter_pos_cor(valor_acao)
+        xa, ya = pos_acao
+
+        if verificar_cor and not simulacao and not cor_bate(pos_acao, cor_esperada, tolerancia_cor):
+            IMPRIMIR(f"  - {nome}: cor no botao '{direcao}' ({xa}, {ya}) mudou, pulando "
+                     "(layout pode ter mudado - recalibre se persistir).")
+            registrar_historico(f"[{acao}] {nome}: PULADO (cor nao bate em {xa},{ya})")
+            continue
+
+        if simulacao:
+            IMPRIMIR(f"  - {nome}: colaria o preco em {tuple(pos_campo)} e clicaria "
+                     f"'{direcao}' em ({xa}, {ya})")
+        else:
+            pyautogui.click(*pos_campo)
+            time.sleep(delay_s)
+            keyboard.send("ctrl+a")
+            time.sleep(delay_s)
+            keyboard.send("ctrl+v")
+            time.sleep(delay_s)
+            pyautogui.click(xa, ya)
+            IMPRIMIR(f"  - {nome}: preco colado, '{direcao}' clicado em ({xa}, {ya})")
+
+        registrar_historico(
+            f"[{acao}] {nome}: {'SIMULADO' if simulacao else 'EXECUTADO'} em ({xa}, {ya})"
+        )
+        time.sleep(delay_s)
+
+    _beep()
+    if AO_DISPARAR is not None:
+        try:
+            AO_DISPARAR()
+        except Exception:
+            pass
+
+
 def alternar_armado():
     global ARMADO, ULTIMA_ATIVIDADE
     ARMADO = not ARMADO
@@ -264,6 +383,12 @@ def _registrar_hotkeys_cli():
         tecla = hotkeys.get(acao)
         if tecla:
             keyboard.add_hotkey(tecla, executar_acao, args=(acao,))
+
+    for direcao in ("compra", "venda"):
+        acao = f"apregoar_{direcao}"
+        tecla = hotkeys.get(acao, HOTKEYS_PADRAO_EXTRAS.get(acao))
+        if tecla:
+            keyboard.add_hotkey(tecla, executar_apregoar, args=(direcao,))
 
     keyboard.add_hotkey(hotkeys["armar_desarmar"], alternar_armado)
 

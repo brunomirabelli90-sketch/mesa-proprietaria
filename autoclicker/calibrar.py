@@ -17,7 +17,7 @@ import pyautogui
 
 TECLA_CAPTURA = "f8"
 TECLA_PULAR = "f7"
-BOTOES_PADRAO = ["compra", "venda", "zerar", "cancelar_zerar"]
+BOTOES_PADRAO = ["compra", "venda", "zerar", "cancelar_zerar", "campo_preco"]
 DEBOUNCE_CAPTURA_S = 0.4
 ARQUIVO_CONFIG = "config.json"
 
@@ -92,6 +92,8 @@ def config_padrao(boletas):
             "venda": "f2",
             "zerar": "f3",
             "cancelar_zerar": "f4",
+            "apregoar_compra": "f5",
+            "apregoar_venda": "f6",
             "armar_desarmar": "f9",
             "trocar_perfil": "f10",
             "alternar_modo_simulacao": "f11",

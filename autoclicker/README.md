@@ -193,6 +193,10 @@ Com mais de um config na linha de comando, a hotkey **F10** (`trocar_perfil`
 no `config.json`) alterna entre eles em tempo real, sem fechar o programa —
 o terminal mostra qual perfil ficou ativo e as contas dele.
 
+Na interface gráfica isso fica mais fácil ainda — ver "Perfis pela
+interface" logo abaixo, que dá pra criar e trocar de perfil sem mexer em
+linha de comando nenhuma.
+
 ## Interface gráfica (opcional)
 
 Além do modo terminal, tem uma janela simples com botões, pros mesmos
@@ -210,6 +214,40 @@ Checkbox **"Sempre no topo"** mantém o painel visível por cima das janelas
 do Profit, sem precisar clicar nele antes de usar os botões. O painel de
 status também pisca rapidamente a cada disparo (além do beep), como
 confirmação visual de que a ação saiu.
+
+### Perfis pela interface
+
+No topo do painel tem um seletor **"Perfil:"** com um dropdown e o botão
+**"+ Novo perfil"** — não precisa mais passar arquivos na linha de comando
+nem editar `.bat` pra ter vários perfis (ex: um pra layout normal, outro
+pro layout de leilão, outro só pras contas que usam apregoar):
+
+1. Clica em **"+ Novo perfil"**, digita um nome (ex: "Leilão").
+2. Abre uma janela de calibração separada (é o `calibrar.py` de sempre,
+   ou o `Calibrar.exe` se você estiver usando o compilado) — passa pelo
+   processo normal (F8 captura, F7 pula) pra calibrar as contas desse
+   perfil novo.
+3. Fecha essa janela quando terminar. O Autoclicker detecta sozinho e
+   cadastra o perfil novo (fica salvo em `perfis.json`, na mesma pasta).
+4. Fecha e abre o Autoclicker de novo — o perfil novo já aparece no
+   dropdown, junto com os outros.
+
+Depois de cadastrados, trocar de perfil é só escolher no dropdown (ou
+continuar usando **F10**, que agora também atualiza o dropdown sozinho).
+
+Se você usa o `.exe` compilado, o botão "+ Novo perfil" abre o
+`Calibrar.exe` — por isso ele precisa existir **na mesma pasta** do
+`AutoclickerGUI.exe`. Se só compilou o `AutoclickerGUI.exe` até agora,
+compila o calibrador também:
+```
+python -m PyInstaller --onefile --name Calibrar calibrar.py
+```
+(sem `--windowed`, porque o calibrador precisa mesmo do console pra
+mostrar as instruções e ler o F8/F7).
+
+Se preferir continuar do jeito antigo (passando os arquivos direto na
+linha de comando / no `.bat`), funciona igual antes — o dropdown de
+perfis só é usado quando existe um `perfis.json` na pasta.
 
 ### Trocar os atalhos pela própria interface
 
@@ -285,7 +323,12 @@ O executável fica em `dist\Autoclicker.exe`, já com o ícone `icone.ico` do
 projeto. Distribua esse `.exe` junto com `config.json` (já calibrado ou pra
 a pessoa calibrar com `calibrar.py`) e o `licenca.lic` gerado pra ela. Não é
 preciso compilar `calibrar.py` — ele não faz nenhuma checagem de licença
-nem tem nada sensível.
+nem tem nada sensível — **a não ser** que você (ou a pessoa) vá usar o
+botão **"+ Novo perfil"** da interface gráfica, que depende de um
+`Calibrar.exe` na mesma pasta (ver "Perfis pela interface" acima):
+```
+python -m PyInstaller --onefile --name Calibrar calibrar.py
+```
 
 Pra compilar a versão com interface gráfica também (mesmo ícone, e
 `--windowed` pra não abrir uma janela de console preta atrás do painel):

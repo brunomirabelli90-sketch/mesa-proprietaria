@@ -65,6 +65,7 @@ DEBOUNCE_S = 0.5
 
 PERFIS = []  # lista de (caminho, config)
 INDICE_PERFIL = 0
+NOMES_PERFIS = {}  # caminho -> nome amigavel (opcional; cai pro caminho se nao tiver)
 
 CONTADORES = {
     "compra": 0, "venda": 0, "zerar": 0, "cancelar_zerar": 0,
@@ -97,6 +98,20 @@ def carregar_perfis(caminhos):
     global PERFIS, INDICE_PERFIL
     PERFIS = [(c, carregar_config(c)) for c in caminhos]
     INDICE_PERFIL = 0
+
+
+def carregar_perfis_nomeados(entradas):
+    """Igual carregar_perfis, mas recebe [(nome, caminho), ...] e guarda um
+    nome amigavel por perfil (usado pelo dropdown de perfis da GUI, em vez
+    de mostrar o caminho do arquivo)."""
+    global PERFIS, INDICE_PERFIL, NOMES_PERFIS
+    PERFIS = [(caminho, carregar_config(caminho)) for _, caminho in entradas]
+    NOMES_PERFIS = {caminho: nome for nome, caminho in entradas}
+    INDICE_PERFIL = 0
+
+
+def nome_perfil(caminho):
+    return NOMES_PERFIS.get(caminho, caminho)
 
 
 def config_atual():
@@ -369,16 +384,22 @@ def alternar_modo_simulacao():
     registrar_historico(f"Modo alterado para {estado}")
 
 
-def trocar_perfil():
+def selecionar_perfil(indice):
     global INDICE_PERFIL
+    if not (0 <= indice < len(PERFIS)):
+        return
+    INDICE_PERFIL = indice
+    caminho, config = PERFIS[INDICE_PERFIL]
+    IMPRIMIR(f"\n*** Perfil ativo agora: {nome_perfil(caminho)} "
+             f"(contas: {[b.get('nome') for b in config['boletas']]}) ***\n")
+    registrar_historico(f"Perfil trocado para {nome_perfil(caminho)}")
+
+
+def trocar_perfil():
     if len(PERFIS) < 2:
         IMPRIMIR("So existe um perfil carregado, nada pra trocar.")
         return
-    INDICE_PERFIL = (INDICE_PERFIL + 1) % len(PERFIS)
-    caminho, config = PERFIS[INDICE_PERFIL]
-    IMPRIMIR(f"\n*** Perfil ativo agora: {caminho} "
-             f"(contas: {[b.get('nome') for b in config['boletas']]}) ***\n")
-    registrar_historico(f"Perfil trocado para {caminho}")
+    selecionar_perfil((INDICE_PERFIL + 1) % len(PERFIS))
 
 
 def _registrar_hotkeys_cli():

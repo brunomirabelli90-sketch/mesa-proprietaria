@@ -5,12 +5,19 @@ numa janela, alem dos hotkeys globais continuarem funcionando.
 
 Uso:
     python autoclicker_gui.py [config1.json] [config2.json ...]
+
+Se existir um perfis.json na pasta (gerado pelo botao "+ Novo perfil" da
+propria interface), ele manda na lista de perfis em vez dos argumentos
+acima - ver ARQUIVO_PERFIS mais abaixo.
 """
+import json
 import os
+import re
 import subprocess
 import sys
+import threading
 import tkinter as tk
-from tkinter import messagebox, scrolledtext
+from tkinter import messagebox, scrolledtext, simpledialog, ttk
 
 import keyboard
 
@@ -18,6 +25,7 @@ import autoclicker as core
 from licenca import validar_licenca
 
 CAMINHO_ICONE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "icone.ico")
+ARQUIVO_PERFIS = "perfis.json"
 
 # Paleta escura (mesma linha do meta_plano_risco.html do projeto).
 COR_FUNDO = "#0f1419"
@@ -49,8 +57,27 @@ HOTKEYS_PADRAO_EXTRAS = {
 }
 
 
+def carregar_registro_perfis():
+    """Le o perfis.json (lista de {"nome":..., "arquivo":...}). Devolve
+    None se o arquivo nao existir - quem chama decide o fallback (argv ou
+    o config.json padrao)."""
+    if not os.path.exists(ARQUIVO_PERFIS):
+        return None
+    try:
+        with open(ARQUIVO_PERFIS, "r", encoding="utf-8") as f:
+            dados = json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return None
+    return dados.get("perfis", [])
+
+
+def salvar_registro_perfis(perfis):
+    with open(ARQUIVO_PERFIS, "w", encoding="utf-8") as f:
+        json.dump({"perfis": perfis}, f, indent=2, ensure_ascii=False)
+
+
 class App:
-    def __init__(self, root, caminhos_config, motivo_licenca=""):
+    def __init__(self, root, entradas_perfis, motivo_licenca=""):
         self.root = root
         self.motivo_licenca = motivo_licenca
         root.title("Autoclicker multi-conta")
@@ -61,7 +88,7 @@ class App:
             except tk.TclError:
                 pass
 
-        core.carregar_perfis(caminhos_config)
+        core.carregar_perfis_nomeados(entradas_perfis)
         core.IMPRIMIR = self._log
         core.AO_DISPARAR = self._flash
 
@@ -77,6 +104,22 @@ class App:
             selectcolor=COR_PAINEL, activebackground=COR_FUNDO,
             activeforeground=COR_TEXTO, font=("Segoe UI", 9),
         ).pack(side="right")
+
+        perfil_frame = tk.Frame(root, bg=COR_FUNDO)
+        perfil_frame.pack(fill="x", padx=10, pady=(6, 0))
+        tk.Label(
+            perfil_frame, text="Perfil:", bg=COR_FUNDO, fg=COR_TEXTO_FRACO,
+            font=("Segoe UI", 9),
+        ).pack(side="left")
+        self.combo_perfil = ttk.Combobox(perfil_frame, state="readonly", width=22)
+        self.combo_perfil.pack(side="left", padx=(4, 6))
+        self.combo_perfil.bind("<<ComboboxSelected>>", self._ao_selecionar_perfil)
+        tk.Button(
+            perfil_frame, text="+ Novo perfil", bg=COR_PAINEL, fg=COR_TEXTO,
+            activebackground="#242b3d", bd=0, relief="flat", cursor="hand2",
+            font=("Segoe UI", 9), command=self.novo_perfil,
+        ).pack(side="left")
+        self._atualizar_lista_perfis()
 
         self.status = tk.Label(
             root, text="", justify="left", anchor="w",
@@ -127,14 +170,6 @@ class App:
                   ).grid(row=3, column=1, padx=2, pady=2)
 
         linha_extra = 4
-
-        if len(core.PERFIS) > 1:
-            tk.Button(
-                botoes, text="Trocar perfil (F10)", width=36,
-                bg=COR_PAINEL, fg=COR_ACENTO, activebackground="#242b3d",
-                command=self.trocar_perfil, **self.estilo_botao,
-            ).grid(row=linha_extra, column=0, columnspan=2, pady=(6, 0))
-            linha_extra += 1
 
         tk.Button(
             botoes, text="Modo Simulacao / Real (F11)", width=36,
@@ -245,7 +280,7 @@ class App:
         caminho_perfil = core.PERFIS[core.INDICE_PERFIL][0]
         contadores = " ".join(f"{a}={n}" for a, n in core.CONTADORES.items())
         texto = (
-            f"Perfil: {caminho_perfil}\n"
+            f"Perfil: {core.nome_perfil(caminho_perfil)}\n"
             f"Armado: {'SIM' if core.ARMADO else 'nao'}    "
             f"Modo: {'SIMULACAO' if config.get('modo_simulacao', True) else 'REAL'}\n"
             f"Contas: {[b.get('nome') for b in config['boletas']]}\n"
@@ -269,7 +304,112 @@ class App:
 
     def trocar_perfil(self):
         core.trocar_perfil()
+        self._atualizar_lista_perfis()
         self._atualizar_status()
+
+    def _atualizar_lista_perfis(self):
+        nomes = [core.nome_perfil(caminho) for caminho, _ in core.PERFIS]
+        self.combo_perfil["values"] = nomes
+        if nomes:
+            self.combo_perfil.current(core.INDICE_PERFIL)
+
+    def _ao_selecionar_perfil(self, event=None):
+        indice = self.combo_perfil.current()
+        if indice == core.INDICE_PERFIL:
+            return
+        core.selecionar_perfil(indice)
+        self._atualizar_status()
+
+    def novo_perfil(self):
+        nome = simpledialog.askstring(
+            "Novo perfil", "Nome do novo perfil (ex: Leilao, Apregoado):",
+            parent=self.root,
+        )
+        if not nome or not nome.strip():
+            return
+        nome = nome.strip()
+        slug = re.sub(r"[^a-zA-Z0-9_-]+", "_", nome).strip("_").lower() or "perfil"
+        caminho = f"config_{slug}.json"
+
+        if os.path.exists(caminho):
+            if not messagebox.askyesno(
+                "Arquivo ja existe",
+                f"Ja existe um '{caminho}'. Abrir a calibracao nele mesmo "
+                "assim? (da pra adicionar/recalibrar contas sem apagar as "
+                "que ja tem).",
+            ):
+                return
+
+        try:
+            processo = self._abrir_calibrador(caminho)
+        except FileNotFoundError as e:
+            messagebox.showerror("Calibrador nao encontrado", str(e))
+            return
+
+        self._log(f"Calibracao do perfil '{nome}' aberta numa janela separada "
+                   f"({caminho}). Preencha ela e feche quando terminar.")
+
+        def esperar():
+            processo.wait()
+            self.root.after(0, lambda: self._perfil_calibrado(nome, caminho))
+
+        threading.Thread(target=esperar, daemon=True).start()
+
+    def _abrir_calibrador(self, caminho_config):
+        """Abre o calibrador (script ou exe compilado, dependendo de como o
+        Autoclicker esta rodando) numa janela de console separada, apontado
+        pro arquivo de config desse novo perfil."""
+        if getattr(sys, "frozen", False):
+            pasta_base = os.path.dirname(os.path.abspath(sys.argv[0]))
+        else:
+            pasta_base = os.path.dirname(os.path.abspath(__file__))
+
+        flags = getattr(subprocess, "CREATE_NEW_CONSOLE", 0)
+
+        if getattr(sys, "frozen", False):
+            exe_calibrar = os.path.join(pasta_base, "Calibrar.exe")
+            if not os.path.exists(exe_calibrar):
+                raise FileNotFoundError(
+                    f"'{exe_calibrar}' nao encontrado. Compile tambem o "
+                    "calibrador (python -m PyInstaller --onefile --name "
+                    "Calibrar calibrar.py) e deixe o Calibrar.exe na mesma "
+                    "pasta do AutoclickerGUI.exe."
+                )
+            comando = [exe_calibrar, caminho_config]
+        else:
+            executavel = sys.executable
+            if executavel.lower().endswith("pythonw.exe"):
+                candidato = executavel[:-len("pythonw.exe")] + "python.exe"
+                if os.path.exists(candidato):
+                    executavel = candidato
+            script_calibrar = os.path.join(pasta_base, "calibrar.py")
+            if not os.path.exists(script_calibrar):
+                raise FileNotFoundError(f"'{script_calibrar}' nao encontrado.")
+            comando = [executavel, script_calibrar, caminho_config]
+
+        return subprocess.Popen(comando, cwd=pasta_base, creationflags=flags)
+
+    def _perfil_calibrado(self, nome, caminho):
+        if not os.path.exists(caminho):
+            self._log(f"Calibracao de '{nome}' fechada sem gerar '{caminho}' - "
+                       "perfil nao adicionado.")
+            return
+
+        registro = carregar_registro_perfis()
+        if registro is None:
+            registro = [
+                {"nome": core.nome_perfil(c), "arquivo": c} for c, _ in core.PERFIS
+            ]
+        registro = [p for p in registro if p.get("arquivo") != caminho]
+        registro.append({"nome": nome, "arquivo": caminho})
+        salvar_registro_perfis(registro)
+
+        self._log(f"Perfil '{nome}' ({caminho}) calibrado e salvo em {ARQUIVO_PERFIS}.")
+        messagebox.showinfo(
+            "Perfil criado",
+            f"Perfil '{nome}' calibrado e salvo.\n"
+            "Feche e abra o Autoclicker de novo pra ele aparecer na lista de perfis.",
+        )
 
     def alternar_modo(self):
         core.alternar_modo_simulacao()
@@ -455,10 +595,22 @@ def main():
         messagebox.showerror("Autoclicker bloqueado", motivo)
         sys.exit(1)
 
-    caminhos = sys.argv[1:] if len(sys.argv) > 1 else ["config.json"]
+    registro = carregar_registro_perfis()
+    entradas = []
+    if registro:
+        entradas = [
+            (p["nome"], p["arquivo"]) for p in registro
+            if os.path.exists(p.get("arquivo", ""))
+        ]
+    if not entradas:
+        caminhos_argv = sys.argv[1:]
+        if caminhos_argv:
+            entradas = [(os.path.splitext(os.path.basename(c))[0], c) for c in caminhos_argv]
+        else:
+            entradas = [("Padrão", "config.json")]
 
     root = tk.Tk()
-    App(root, caminhos, motivo_licenca=motivo)
+    App(root, entradas, motivo_licenca=motivo)
     if "ATENCAO" in motivo:
         messagebox.showwarning("Licenca", motivo)
     root.mainloop()

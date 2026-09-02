@@ -2,10 +2,11 @@
 Calibrador de coordenadas para o autoclicker.
 
 Uso:
-    python calibrar.py
+    python calibrar.py [arquivo_config.json]
 
-Para cada conta/botao pedido, posicione o mouse sobre o botao na tela
-e pressione a tecla de captura (F8). O resultado e salvo em config.json.
+Se o nome do arquivo nao for passado, usa config.json. Para cada
+conta/botao pedido, posicione o mouse sobre o botao na tela e pressione a
+tecla de captura (F8). O resultado e salvo no arquivo indicado.
 """
 import json
 import os
@@ -236,4 +237,6 @@ def main():
 
 
 if __name__ == "__main__":
+    if len(sys.argv) > 1:
+        ARQUIVO_CONFIG = sys.argv[1]
     main()

@@ -16,6 +16,7 @@ import tkinter as tk
 import excel_leitor
 import estrategia_leilao as estrategia
 import mercado_externo
+import mercado_macro
 
 CAMINHO_ICONE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "icone.ico")
 
@@ -176,7 +177,35 @@ class PainelLeilao:
         self.lbl_vix = self._criar_bloco_indice(externos_frame2, "VIX")
         self.lbl_dxy = self._criar_bloco_indice(externos_frame2, "Índice Dólar")
 
+        externos_frame3 = tk.Frame(root, bg=COR_FUNDO)
+        externos_frame3.pack(fill="x", padx=16, pady=(0, 12))
+
+        self.lbl_petroleo = self._criar_bloco_indice(externos_frame3, "Petróleo")
+        self.lbl_minerio = self._criar_bloco_indice(externos_frame3, "Minério")
+
+        # Filtro macro (experimental) - score somando os ativos acima,
+        # separado do sinal principal do leilao (ver estrategia_leilao).
+        self.lbl_titulo_macro = tk.Label(
+            root, text="FILTRO MACRO (experimental)", font=("Segoe UI", 10, "bold"),
+            bg=COR_FUNDO, fg=COR_TEXTO_FRACO,
+        )
+        self.lbl_titulo_macro.pack(anchor="w", padx=16, pady=(0, 4))
+
+        macro_frame = tk.Frame(root, bg=COR_PAINEL)
+        macro_frame.pack(fill="x", padx=16, pady=(0, 16))
+        self.lbl_score_macro = tk.Label(
+            macro_frame, text="Score: -", font=("Consolas", 12, "bold"),
+            bg=COR_PAINEL, fg=COR_TEXTO, anchor="w",
+        )
+        self.lbl_score_macro.pack(side="left", padx=10, pady=8)
+        self.lbl_veredito_macro = tk.Label(
+            macro_frame, text=estrategia.SEM_DADO, font=("Segoe UI", 12, "bold"),
+            bg=COR_PAINEL, fg=COR_TEXTO_FRACO, anchor="e",
+        )
+        self.lbl_veredito_macro.pack(side="right", padx=10, pady=8)
+
         mercado_externo.iniciar()
+        mercado_macro.iniciar()
         self._agendar_atualizacao()
 
     def _criar_bloco_indice(self, container, nome, destaque=False):
@@ -216,6 +245,7 @@ class PainelLeilao:
         self.lbl_status_conexao.config(text="● conectado", fg=COR_VERDE)
 
         dados.update(mercado_externo.obter_ultimo())
+        dados.update(mercado_macro.obter_ultimo())
 
         resultado = estrategia.calcular_sinal(
             dados["fechamento"], dados["ajuste"], dados["teorico"]
@@ -234,6 +264,7 @@ class PainelLeilao:
         if self._cache_dados is not None and self._cache_resultado is not None:
             self._atualizar_dados(self._cache_dados, self._cache_resultado)
             self._atualizar_indices(self._cache_dados)
+            self._atualizar_macro(self._cache_dados)
 
     def _atualizar_rotulos(self):
         oculto = self.var_modo_live.get()
@@ -241,6 +272,9 @@ class PainelLeilao:
             lbl.config(text="••••" if oculto else texto_original)
         for lbl, texto_original in self.rotulos_indices:
             lbl.config(text="•••" if oculto else texto_original)
+        self.lbl_titulo_macro.config(
+            text="••••••••••••" if oculto else "FILTRO MACRO (experimental)"
+        )
 
     def _atualizar_badge(self, r):
         # o sinal final fica sempre visivel, inclusive no modo live - e'
@@ -294,6 +328,7 @@ class PainelLeilao:
         blocos = (
             (self.lbl_sp500, "sp500"), (self.lbl_nasdaq, "nasdaq"), (self.lbl_dow, "dow"),
             (self.lbl_vix, "vix"), (self.lbl_dxy, "dxy"),
+            (self.lbl_petroleo, "petroleo"), (self.lbl_minerio, "minerio"),
         )
         if self.var_modo_live.get():
             for lbl, _ in blocos:
@@ -304,6 +339,21 @@ class PainelLeilao:
             texto, cor = formatar_variacao(dados.get(chave))
             lbl.config(text=texto, fg=cor)
 
+    def _atualizar_macro(self, dados):
+        if self.var_modo_live.get():
+            self.lbl_score_macro.config(text="Score: ••••", fg=COR_TEXTO_FRACO)
+            self.lbl_veredito_macro.config(text="••••••", fg=COR_TEXTO_FRACO)
+            return
+
+        r = estrategia.calcular_score_macro(
+            petroleo=dados.get("petroleo"), minerio=dados.get("minerio"),
+            dxy=dados.get("dxy"), vix=dados.get("vix"), sp500=dados.get("sp500"),
+        )
+        texto_score, cor_score = formatar_variacao(r["score"])
+        self.lbl_score_macro.config(text=f"Score: {texto_score}", fg=cor_score)
+        cor_veredito = CORES_SINAL.get(r["veredito"], COR_CINZA)
+        self.lbl_veredito_macro.config(text=r["veredito"], fg=cor_veredito)
+
     @staticmethod
     def _fmt(valor):
         if not valor:
@@ -313,7 +363,7 @@ class PainelLeilao:
 
 def main():
     root = tk.Tk()
-    root.geometry("440x700")
+    root.geometry("440x880")
     root.resizable(False, False)
     PainelLeilao(root)
     root.mainloop()

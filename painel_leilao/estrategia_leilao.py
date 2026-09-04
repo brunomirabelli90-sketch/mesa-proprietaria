@@ -78,3 +78,40 @@ def tendencia_vwap(preco_atual, vwap):
     if preco_atual < vwap:
         return BAIXA
     return None
+
+
+LIMIAR_SCORE_MACRO = 1.0
+
+
+def calcular_score_macro(petroleo, minerio, dxy, vix, sp500):
+    """Filtro macro EXPERIMENTAL, separado do sinal principal do leilao
+    (que continua sendo so o gap vs fechamento/ajuste). Soma a variacao %
+    de ativos que costumam puxar o Ibovespa/WIN, invertendo o sinal dos
+    dois que sao "risk-off" (dolar forte e VIX em alta prejudicam bolsa
+    emergente e commodities):
+
+        score = petroleo + minerio + sp500 - dxy - vix
+
+    petroleo/minerio em alta, dolar/VIX em baixa e S&P em alta -> score
+    positivo -> veredito COMPRA. Cada perna e' opcional (usa so as que
+    tiverem dado); se nenhuma tiver, devolve SEM_DADO."""
+    valores = {"petroleo": petroleo, "minerio": minerio, "dxy": dxy, "vix": vix, "sp500": sp500}
+    if all(v is None for v in valores.values()):
+        return {"score": None, "veredito": SEM_DADO}
+
+    score = 0.0
+    for chave in ("petroleo", "minerio", "sp500"):
+        if valores[chave] is not None:
+            score += valores[chave]
+    for chave in ("dxy", "vix"):
+        if valores[chave] is not None:
+            score -= valores[chave]
+
+    if score > LIMIAR_SCORE_MACRO:
+        veredito = COMPRA
+    elif score < -LIMIAR_SCORE_MACRO:
+        veredito = VENDA
+    else:
+        veredito = NEUTRO
+
+    return {"score": score, "veredito": veredito}

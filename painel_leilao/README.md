@@ -29,6 +29,14 @@ BlackArrow exportam ao vivo pra um Excel (via RTD).
   tendência. Se essas colunas não estiverem na planilha, o painel mostra
   "-" nelas e continua funcionando normal.
 
+- Mostra um **Filtro Macro (experimental)**: um score somando a variação
+  de Petróleo, Minério de ferro e S&P500, e subtraindo Índice Dólar e VIX
+  (dólar/VIX em alta prejudicam bolsa/commodities emergentes, por isso
+  entram invertidos). Score positivo o suficiente vira veredito
+  **COMPRA**, negativo o suficiente vira **VENDA**, senão fica **NEUTRO**.
+  **É um filtro separado do sinal principal** (que continua sendo só o
+  gap vs Fechamento/Ajuste) — ver seção própria abaixo.
+
 **Fora da v1** (fica pra depois, quando tiver regra objetiva definida):
 o filtro de "macro" no diário/semanal/mensal.
 
@@ -112,14 +120,45 @@ S&P500/Nasdaq/Dow — não entram no cálculo do sinal de compra/venda.
 Precisa de internet liberada na máquina pra esses dois funcionarem; se não
 tiver, o painel continua funcionando normal, só mostra "-" nesses campos.
 
+### Filtro Macro (experimental)
+
+Ideia parecida com um painel de terceiro que o Bruno viu por aí: soma a
+variação de ativos que costumam puxar o Ibovespa/WIN junto (Petróleo,
+Minério de ferro, S&P500) e subtrai os dois "risk-off" (Índice Dólar e
+VIX — quando sobem, costuma ser ruim pra bolsa/commodities emergentes):
+
+```
+score = petroleo + minerio + sp500 - dxy - vix
+```
+
+Score acima de `+1.0` (`estrategia_leilao.LIMIAR_SCORE_MACRO`) mostra
+**COMPRA**; abaixo de `-1.0` mostra **VENDA**; entre os dois, **NEUTRO**.
+Esse limiar é só um chute inicial razoável — ajusta a constante no
+`estrategia_leilao.py` conforme for validando.
+
+**Isso é só um filtro extra, separado do sinal principal do leilão** (que
+continua sendo exclusivamente o gap do Preço Teórico vs Fechamento/Ajuste
+Anterior) — o painel não junta os dois num veredito só, exatamente como já
+acontece com a confirmação do Ajuste Anterior.
+
+Fontes dos dois ativos que faltavam:
+- **Petróleo** (Brent, ticker `BZ=F`) — Yahoo Finance, igual VIX/DXY.
+- **Minério de ferro** — não tem fonte gratuita por API confiável, então
+  é **scraping** de uma página pública (`mercado_macro.URL_MINERIO_PADRAO`).
+  É a parte mais frágil do painel: se o site mudar de layout, esse campo
+  simplesmente mostra "-" (não trava o resto). Se parar de funcionar, dá
+  pra trocar o link com `mercado_macro.definir_url_minerio("outro link")`
+  ou editando a constante no arquivo.
+
 ### Modo live (esconder a estratégia)
 
 Checkbox **"Modo live (ocultar estratégia)"** no topo esconde tudo que
 revela como o sinal é calculado — valores e nomes de Fechamento, Ajuste,
-Preço Teórico, os dois gaps, a linha de confirma/diverge, e os índices lá
-fora — tudo vira `••••`. O **badge grande (COMPRA/VENDA/AGUARDANDO)**
-continua visível e atualizando, porque é a parte que faz sentido mostrar
-numa live. Liga/desliga na hora, sem esperar o próximo ciclo.
+Preço Teórico, os dois gaps, a linha de confirma/diverge, os índices lá
+fora e o Filtro Macro (score e veredito) — tudo vira `••••`. O **badge
+grande (COMPRA/VENDA/AGUARDANDO)** continua visível e atualizando, porque
+é a parte que faz sentido mostrar numa live. Liga/desliga na hora, sem
+esperar o próximo ciclo.
 
 ## Compilando pra `.exe`
 
@@ -132,9 +171,13 @@ python -m PyInstaller --onefile --windowed --icon=icone.ico --name PainelLeilao 
 
 ## Arquivos
 
-- `estrategia_leilao.py` — lógica pura do cálculo do sinal (sem depender
-  de Excel/Windows), testável isoladamente.
+- `estrategia_leilao.py` — lógica pura do cálculo do sinal e do score
+  macro (sem depender de Excel/Windows/rede), testável isoladamente.
 - `excel_leitor.py` — conecta na instância do Excel já aberta (via
   `pywin32`) e lê as células.
+- `mercado_externo.py` — busca VIX e Índice Dólar (Yahoo Finance) num
+  loop de fundo.
+- `mercado_macro.py` — busca Petróleo (Yahoo Finance) e Minério de ferro
+  (scraping) num loop de fundo, pro Filtro Macro.
 - `painel_leilao.py` — a interface gráfica (Tkinter).
 - `icone.ico` — ícone do programa (janela e `.exe` compilado).

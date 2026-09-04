@@ -1,97 +1,42 @@
-# Painel BMT - Leilão
+# Painel BMT - Leilão (Filtro Macro)
 
-Painel visual pra estratégia de leilão do mini índice (WINFUT): mostra em
-tempo real se o gap favorece compra ou venda, lendo dados que o Profit e o
-BlackArrow exportam ao vivo pra um Excel (via RTD).
+Painel visual pro "filtro macro" do leilão do mini índice (WINFUT): soma a
+variação de ativos que costumam puxar o Ibovespa/WIN junto e vira um
+veredito de COMPRA/VENDA/NEUTRO.
 
-**Regra da v1:**
-- Preço Teórico > Fechamento Anterior → **gap de alta** → sinal base **VENDA**
-- Preço Teórico < Fechamento Anterior → **gap de baixa** → sinal base **COMPRA**
-- Compara também o Preço Teórico com o **Ajuste Anterior**: se apontar pra
-  mesma direção do sinal base, mostra "confirma"; se for pro lado oposto,
-  mostra "diverge". **Isso é só informativo por enquanto** — o painel não
-  trava um veredito único sozinho, porque essa combinação ainda está sendo
-  validada.
-- Mostra a variação do S&P500 (destaque), Nasdaq e Dow Jones, também só
-  informativo, pra correlacionar visualmente.
-- Mostra também **VIX** e **Índice Dólar (DXY)**, vindos do Yahoo Finance
-  (não saem nem do Profit nem do BlackArrow) — também só informativo, com
-  um pequeno atraso (não é tick a tick, ver seção abaixo).
-- Mostra **Preço Atual (Último)** do WINFUT, disponível o pregão inteiro
-  (diferente do Preço Teórico, que só existe durante a janela do leilão e
-  fica 0 no resto do dia).
-- Mostra **VWAP Mensal** e **VWAP Semanal** do WINFUT (vem do Profit, igual
-  Fechamento/Ajuste/Preço Teórico), cada uma com a tendência ao lado —
-  **ALTA** (verde) se o preço atual estiver acima da VWAP, **BAIXA**
-  (vermelho) se estiver abaixo. Isso usa o preço **atual**, não o teórico,
-  justamente pra funcionar o dia todo, não só na janela do leilão. Não
-  entra em nenhum cálculo do sinal de compra/venda, é só leitura de
-  tendência. Se essas colunas não estiverem na planilha, o painel mostra
-  "-" nelas e continua funcionando normal.
+**Não depende de Excel, Profit nem BlackArrow** — a versão anterior lia o
+gap do leilão via RTD numa planilha, mas isso foi removido (a conexão via
+Excel travava com frequência). Agora todo dado vem de fora, direto por
+código, sem precisar montar planilha nenhuma.
 
-- Mostra um **Filtro Macro (experimental)**: um score somando a variação
-  de Petróleo, Minério de ferro e S&P500, e subtraindo Índice Dólar e VIX
-  (dólar/VIX em alta prejudicam bolsa/commodities emergentes, por isso
-  entram invertidos). Score positivo o suficiente vira veredito
-  **COMPRA**, negativo o suficiente vira **VENDA**, senão fica **NEUTRO**.
-  **É um filtro separado do sinal principal** (que continua sendo só o
-  gap vs Fechamento/Ajuste) — ver seção própria abaixo.
+**Regra:**
 
-**Fora da v1** (fica pra depois, quando tiver regra objetiva definida):
-o filtro de "macro" no diário/semanal/mensal.
+```
+score = Petróleo + Minério + S&P500 - Índice Dólar - VIX
+```
+
+Petróleo, Minério e S&P500 em alta ajudam o Ibovespa/WIN, por isso somam;
+Dólar e VIX em alta costumam ser ruins pra bolsa/commodities emergentes,
+por isso entram invertidos (subtraindo). Score acima de `+1.0` mostra
+**COMPRA**; abaixo de `-1.0` mostra **VENDA**; entre os dois, **NEUTRO**.
+Esse limiar (`estrategia_leilao.LIMIAR_SCORE_MACRO`) é só um chute inicial
+razoável — ajusta no arquivo conforme for validando se ajuda de verdade.
+
+**Isso é experimental** — é uma ideia parecida com um painel de terceiro
+que o Bruno viu por aí, ainda sendo validada. Guarda as leituras (botão
+"Salvar leitura") pra poder olhar depois se bateu ou não.
 
 ## Requisitos
 
-- Windows, com Profit e BlackArrow (Nelogica) instalados
-- Microsoft Excel
+- Windows (testado pra isso — usa `os.startfile` pra abrir o histórico)
 - Python 3.9+
+- Internet liberada na máquina (todos os dados vêm de fora)
 
 ```
 pip install -r requirements.txt
 ```
 
-## Montando o Excel (uma vez só, antes de operar)
-
-1. Cria um Excel novo, salva como **`Painel BMT Leilao.xlsx`** (esse nome
-   exato, ou ajusta `NOME_ARQUIVO` em `excel_leitor.py`) e deixa aberto.
-
-2. Renomeia a primeira aba pra **`WINFUT`**. No Profit, com o WINFUT
-   aberto: **Exportar em Tempo Real (RTD/DDE)** → marca **RTD** → seleciona
-   as colunas **Último**, **Fechamento Anterior**, **Aj. Anterior**,
-   **Preço Teórico**, **VWAP Mensal** e **VWAP Semanal** → **Copiar**. Cola
-   na célula **A1** dessa aba.
-
-3. Cria uma segunda aba chamada **`INDICES`**. No BlackArrow, com os
-   ativos MESFUT (S&P500), MNQFUT (Nasdaq) e MYMFUT (Dow Jones) abertos:
-   mesmo processo, RTD, coluna **Variação**, Copiar, cola na célula **A1**
-   dessa aba.
-
-4. Confirma que ficou assim (linha 2 em diante já vem com as fórmulas
-   `=RTD(...)` que atualizam sozinhas):
-
-   **Aba WINFUT**
-   | Asset  | Último | Fechamento Anterior | Aj. Anterior | Preço Teórico | VWAP Mensal | VWAP Semanal |
-   |--------|--------|---------------------|--------------|----------------|-------------|--------------|
-   | WINFUT | 179765 | 177725              | 177822       | 0              | 176900      | 177400       |
-
-   **Aba INDICES**
-   | Asset  | Variação |
-   |--------|----------|
-   | MESFUT | 0        |
-   | MNQFUT | 0        |
-   | MYMFUT | 0        |
-
-5. Salva e **deixa o Excel aberto** — o painel conecta nessa instância já
-   rodando (não abre uma cópia nova, porque isso perderia o link RTD ao
-   vivo).
-
-Se o Profit ou o BlackArrow estiverem em Replay, cuidado: eles podem gerar
-uma linha extra tipo `[R] WINFUT` — apague essa linha ou garanta que a
-linha 2 é sempre o ativo real, já que o painel sempre lê a **linha 2**.
-
 ## Uso
-
-Com o Excel montado e aberto (ver acima), duas formas de abrir:
 
 ```
 python painel_leilao.py
@@ -99,66 +44,60 @@ python painel_leilao.py
 
 Ou dá duplo clique em **`abrir_painel_leilao.bat`** — abre sem janela de
 console atrás e com o nome/ícone certo na barra de tarefas (rodar
-`python painel_leilao.py` direto mostra "Python 3.14" genérico ali, porque
-é o próprio interpretador aparecendo, não o programa).
+`python painel_leilao.py` direto mostra "Python" genérico ali, porque é o
+próprio interpretador aparecendo, não o programa).
 
-O painel atualiza sozinho a cada 1,5s. Se não achar o Excel aberto, mostra
-"Excel não encontrado" e fica tentando reconectar sem precisar reiniciar o
-programa.
+O painel atualiza sozinho a cada 1,5s (lendo o cache que os loops de fundo
+mantêm — ver abaixo), sem precisar de nada aberto além dele mesmo.
 
-### VIX e Índice Dólar (DXY)
+### De onde vêm os dados
 
-Esses dois não vêm do Excel — são buscados direto do Yahoo Finance
-(biblioteca `yfinance`), porque nem o Profit nem o BlackArrow exportam
-DXY, e o VIX não estava sendo puxado por RTD. Rodam num loop separado, a
-cada 60s (`mercado_externo.INTERVALO_ATUALIZACAO_S`), e não travam o painel
-esperando rede — o ciclo de 1,5s só lê o último valor já buscado.
+Tudo via Yahoo Finance (`yfinance`), rodando em loops de fundo separados
+(`mercado_externo.py` e `mercado_macro.py`) que buscam a cada 60s e
+guardam num cache — o ciclo rápido da tela (1,5s) só lê esse cache, nunca
+trava esperando rede:
 
-Por serem dados gratuitos do Yahoo, têm um atraso de alguns minutos (não é
-tempo real tick a tick). Isso é aceitável porque são só informativos, igual
-S&P500/Nasdaq/Dow — não entram no cálculo do sinal de compra/venda.
-Precisa de internet liberada na máquina pra esses dois funcionarem; se não
-tiver, o painel continua funcionando normal, só mostra "-" nesses campos.
+| Ativo         | Fonte                          | Entra no score? |
+|---------------|---------------------------------|:---:|
+| VIX           | Yahoo Finance (`^VIX`)          | Sim (invertido) |
+| Índice Dólar  | Yahoo Finance (`DX-Y.NYB`)      | Sim (invertido) |
+| S&P500        | Yahoo Finance (`ES=F`, futuros) | Sim |
+| Nasdaq        | Yahoo Finance (`NQ=F`, futuros) | Não (só informativo) |
+| Dow Jones     | Yahoo Finance (`YM=F`, futuros) | Não (só informativo) |
+| Petróleo      | Yahoo Finance (`BZ=F`, Brent)   | Sim |
+| Minério       | **Scraping** de uma página pública (não há API gratuita confiável pra isso) | Sim |
 
-### Filtro Macro (experimental)
+Por serem dados gratuitos, têm um atraso de alguns minutos (não é tempo
+real tick a tick) — aceitável pra um filtro macro, que não precisa de
+precisão de segundo. Se a internet cair ou alguma fonte falhar, o campo
+correspondente mostra "-" e o resto do painel continua funcionando.
 
-Ideia parecida com um painel de terceiro que o Bruno viu por aí: soma a
-variação de ativos que costumam puxar o Ibovespa/WIN junto (Petróleo,
-Minério de ferro, S&P500) e subtrai os dois "risk-off" (Índice Dólar e
-VIX — quando sobem, costuma ser ruim pra bolsa/commodities emergentes):
+O **minério** é a parte mais frágil: como não há fonte gratuita
+confiável por API, o painel faz scraping de uma página pública
+(`mercado_macro.URL_MINERIO_PADRAO`). Se o site mudar de layout, esse
+campo especificamente para de funcionar (vira "-", não trava o resto). Se
+isso acontecer, dá pra trocar o link com
+`mercado_macro.definir_url_minerio("outro link")` ou editando a
+constante no arquivo.
 
-```
-score = petroleo + minerio + sp500 - dxy - vix
-```
+### Salvar leituras (histórico)
 
-Score acima de `+1.0` (`estrategia_leilao.LIMIAR_SCORE_MACRO`) mostra
-**COMPRA**; abaixo de `-1.0` mostra **VENDA**; entre os dois, **NEUTRO**.
-Esse limiar é só um chute inicial razoável — ajusta a constante no
-`estrategia_leilao.py` conforme for validando.
+Botão **"Salvar leitura"** grava data/hora + o valor de cada ativo + o
+score + o veredito num arquivo `historico_macro.csv`, na mesma pasta —
+um "banco de dados" simples que abre em qualquer Excel/planilha pra você
+olhar depois quais leituras bateram ou não. Cada clique acrescenta uma
+linha nova; nada é sobrescrito.
 
-**Isso é só um filtro extra, separado do sinal principal do leilão** (que
-continua sendo exclusivamente o gap do Preço Teórico vs Fechamento/Ajuste
-Anterior) — o painel não junta os dois num veredito só, exatamente como já
-acontece com a confirmação do Ajuste Anterior.
-
-Fontes dos dois ativos que faltavam:
-- **Petróleo** (Brent, ticker `BZ=F`) — Yahoo Finance, igual VIX/DXY.
-- **Minério de ferro** — não tem fonte gratuita por API confiável, então
-  é **scraping** de uma página pública (`mercado_macro.URL_MINERIO_PADRAO`).
-  É a parte mais frágil do painel: se o site mudar de layout, esse campo
-  simplesmente mostra "-" (não trava o resto). Se parar de funcionar, dá
-  pra trocar o link com `mercado_macro.definir_url_minerio("outro link")`
-  ou editando a constante no arquivo.
+Botão **"Ver histórico"** abre esse CSV no programa padrão do Windows
+(geralmente o Excel).
 
 ### Modo live (esconder a estratégia)
 
 Checkbox **"Modo live (ocultar estratégia)"** no topo esconde tudo que
-revela como o sinal é calculado — valores e nomes de Fechamento, Ajuste,
-Preço Teórico, os dois gaps, a linha de confirma/diverge, os índices lá
-fora e o Filtro Macro (score e veredito) — tudo vira `••••`. O **badge
-grande (COMPRA/VENDA/AGUARDANDO)** continua visível e atualizando, porque
-é a parte que faz sentido mostrar numa live. Liga/desliga na hora, sem
-esperar o próximo ciclo.
+revela como o veredito é calculado — os ativos individuais e o score —
+tudo vira `••••`. O **badge grande (COMPRA/VENDA/NEUTRO/AGUARDANDO)**
+continua visível e atualizando, porque é a parte que faz sentido mostrar
+numa live. Liga/desliga na hora, sem esperar o próximo ciclo.
 
 ## Compilando pra `.exe`
 
@@ -171,13 +110,16 @@ python -m PyInstaller --onefile --windowed --icon=icone.ico --name PainelLeilao 
 
 ## Arquivos
 
-- `estrategia_leilao.py` — lógica pura do cálculo do sinal e do score
-  macro (sem depender de Excel/Windows/rede), testável isoladamente.
-- `excel_leitor.py` — conecta na instância do Excel já aberta (via
-  `pywin32`) e lê as células.
-- `mercado_externo.py` — busca VIX e Índice Dólar (Yahoo Finance) num
-  loop de fundo.
+- `estrategia_leilao.py` — lógica pura do cálculo do score/veredito (sem
+  depender de rede/Windows), testável isoladamente.
+- `mercado_externo.py` — busca VIX, Índice Dólar, S&P500, Nasdaq e Dow
+  (Yahoo Finance) num loop de fundo.
 - `mercado_macro.py` — busca Petróleo (Yahoo Finance) e Minério de ferro
-  (scraping) num loop de fundo, pro Filtro Macro.
+  (scraping) num loop de fundo.
+- `historico_macro.py` — salva/lê o `historico_macro.csv` com as leituras
+  salvas manualmente.
 - `painel_leilao.py` — a interface gráfica (Tkinter).
 - `icone.ico` — ícone do programa (janela e `.exe` compilado).
+- `excel_leitor.py` — **não é mais usado** pelo painel (ficou da versão
+  anterior, que lia o gap do leilão via Excel/RTD). Deixei o arquivo no
+  projeto caso essa parte volte a ser útil no futuro.

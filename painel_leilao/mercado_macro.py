@@ -1,7 +1,7 @@
 """
 Petroleo (Brent) e Minerio de ferro - fontes extras pro "filtro macro" do
-leilao (ver estrategia_leilao.calcular_score_macro), alem de DX/VIX
-(mercado_externo.py) e S&P500 (Excel/BlackArrow).
+leilao (ver estrategia_leilao.calcular_score_macro), alem de DX/VIX/S&P500
+(todos em mercado_externo.py, via Yahoo Finance).
 
 Petroleo vem do Yahoo Finance (yfinance), igual VIX/DXY. Minerio de ferro
 NAO tem fonte gratuita por API confiavel, entao aqui e' scraping direto de

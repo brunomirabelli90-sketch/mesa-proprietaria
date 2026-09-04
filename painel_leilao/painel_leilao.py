@@ -1,20 +1,23 @@
 """
-Painel do leilao do mini indice (WINFUT): mostra em tempo real se o gap
-favorece compra ou venda, com base no Excel ligado por RTD no Profit
-(WINFUT) e no BlackArrow (indices internacionais).
+Painel do Filtro Macro pro leilao do mini indice (WINFUT): soma a variacao
+de ativos que costumam puxar o Ibovespa/WIN (Petroleo, Minerio, S&P500) e
+subtrai os "risk-off" (Dolar, VIX), virando um veredito de COMPRA/VENDA.
 
 Uso:
     python painel_leilao.py
 
-Requisitos: o Excel "Painel BMT Leilao.xlsx" (ou o nome passado em
-excel_leitor.NOME_ARQUIVO) precisa estar ABERTO, com as formulas RTD já
-coladas (ver README.md pra montar isso).
+Nao depende mais de Excel/Profit/BlackArrow (essa parte foi removida por
+ser instavel - "sempre bugava no Excel"). Todos os dados vem de fora,
+via mercado_externo.py (VIX, Indice Dolar) e mercado_macro.py (Petroleo,
+Minerio, e o resto que ja vinha de la).
 """
 import os
+import subprocess
 import tkinter as tk
+from tkinter import messagebox
 
-import excel_leitor
 import estrategia_leilao as estrategia
+import historico_macro
 import mercado_externo
 import mercado_macro
 
@@ -42,24 +45,6 @@ CORES_SINAL = {
 }
 
 
-def formatar_gap(gap):
-    if gap is None:
-        return "-"
-    sinal = "+" if gap > 0 else ""
-    return f"{sinal}{gap:.0f} pts"
-
-
-def formatar_vwap(valor, tendencia):
-    if valor is None:
-        return "-", COR_TEXTO_FRACO
-    texto = f"{valor:.0f}"
-    if tendencia == estrategia.ALTA:
-        return f"{texto} ALTA", COR_VERDE
-    if tendencia == estrategia.BAIXA:
-        return f"{texto} BAIXA", COR_VERMELHO
-    return texto, COR_TEXTO
-
-
 def formatar_variacao(valor):
     if valor is None:
         return "-", COR_TEXTO_FRACO
@@ -79,21 +64,15 @@ class PainelLeilao:
             except tk.TclError:
                 pass
 
-        self.workbook = None
-        self._cache_dados = None
-        self._cache_resultado = None
+        self._cache_dados = {}
+        self._cache_resultado = {"score": None, "veredito": estrategia.SEM_DADO}
 
         cabecalho = tk.Frame(root, bg=COR_FUNDO)
         cabecalho.pack(fill="x", padx=16, pady=(16, 0))
         tk.Label(
-            cabecalho, text="WINFUT · LEILÃO", font=("Segoe UI", 12, "bold"),
+            cabecalho, text="LEILÃO · FILTRO MACRO", font=("Segoe UI", 12, "bold"),
             bg=COR_FUNDO, fg=COR_TEXTO_FRACO,
         ).pack(side="left")
-        self.lbl_status_conexao = tk.Label(
-            cabecalho, text="conectando...", font=("Segoe UI", 9),
-            bg=COR_FUNDO, fg=COR_TEXTO_FRACO,
-        )
-        self.lbl_status_conexao.pack(side="right")
 
         linha_live = tk.Frame(root, bg=COR_FUNDO)
         linha_live.pack(fill="x", padx=16, pady=(2, 8))
@@ -106,59 +85,31 @@ class PainelLeilao:
             font=("Segoe UI", 9),
         ).pack(side="right")
 
-        # Badge grande com o sinal
+        # Badge grande com o veredito (COMPRA/VENDA/NEUTRO/AGUARDANDO)
         self.frame_badge = tk.Frame(root, bg=COR_CINZA, height=110)
         self.frame_badge.pack(fill="x", padx=16, pady=6)
         self.frame_badge.pack_propagate(False)
         self.lbl_sinal = tk.Label(
-            self.frame_badge, text="AGUARDANDO", font=("Segoe UI", 30, "bold"),
+            self.frame_badge, text=estrategia.SEM_DADO, font=("Segoe UI", 30, "bold"),
             bg=COR_CINZA, fg="white",
         )
         self.lbl_sinal.pack(expand=True)
 
-        # Dados do gap
-        dados_frame = tk.Frame(root, bg=COR_PAINEL)
-        dados_frame.pack(fill="x", padx=16, pady=6)
-
-        self.linhas_dados = {}
-        self.rotulos_dados = []  # (label_widget, texto_original)
-        for i, (chave, rotulo) in enumerate([
-            ("ultimo", "Preço Atual (Último)"),
-            ("fechamento", "Fechamento Anterior"),
-            ("ajuste", "Aj. Anterior"),
-            ("teorico", "Preço Teórico"),
-            ("vwap_mensal", "VWAP Mensal"),
-            ("vwap_semanal", "VWAP Semanal"),
-            ("gap_fechamento", "Gap (vs Fechamento)"),
-            ("gap_ajuste", "Gap (vs Ajuste)"),
-        ]):
-            lbl_rotulo = tk.Label(
-                dados_frame, text=rotulo, font=("Segoe UI", 10),
-                bg=COR_PAINEL, fg=COR_TEXTO_FRACO, anchor="w", width=22,
-            )
-            lbl_rotulo.grid(row=i, column=0, sticky="w", padx=(10, 4), pady=3)
-            self.rotulos_dados.append((lbl_rotulo, rotulo))
-
-            lbl_valor = tk.Label(
-                dados_frame, text="-", font=("Consolas", 11, "bold"),
-                bg=COR_PAINEL, fg=COR_TEXTO, anchor="e", width=18,
-            )
-            lbl_valor.grid(row=i, column=1, sticky="e", padx=(4, 10), pady=3)
-            self.linhas_dados[chave] = lbl_valor
-
-        # Confirmacao do ajuste
-        self.lbl_confirmacao = tk.Label(
-            root, text="", font=("Segoe UI", 10, "italic"),
-            bg=COR_FUNDO, fg=COR_TEXTO_FRACO,
+        # Score (detalhe do calculo do veredito acima)
+        score_frame = tk.Frame(root, bg=COR_PAINEL)
+        score_frame.pack(fill="x", padx=16, pady=(0, 12))
+        self.lbl_score_macro = tk.Label(
+            score_frame, text="Score: -", font=("Consolas", 12, "bold"),
+            bg=COR_PAINEL, fg=COR_TEXTO, anchor="w",
         )
-        self.lbl_confirmacao.pack(fill="x", padx=16, pady=(2, 8))
+        self.lbl_score_macro.pack(side="left", padx=10, pady=8)
 
         # Separador
         tk.Frame(root, bg=COR_CINZA, height=1).pack(fill="x", padx=16)
 
-        # "La fora"
+        # "La fora" - ativos usados no score, mais os indices so informativos
         tk.Label(
-            root, text="LÁ FORA (informativo)", font=("Segoe UI", 10, "bold"),
+            root, text="ATIVOS (informativo)", font=("Segoe UI", 10, "bold"),
             bg=COR_FUNDO, fg=COR_TEXTO_FRACO,
         ).pack(anchor="w", padx=16, pady=(10, 4))
 
@@ -178,31 +129,25 @@ class PainelLeilao:
         self.lbl_dxy = self._criar_bloco_indice(externos_frame2, "Índice Dólar")
 
         externos_frame3 = tk.Frame(root, bg=COR_FUNDO)
-        externos_frame3.pack(fill="x", padx=16, pady=(0, 12))
+        externos_frame3.pack(fill="x", padx=16, pady=(0, 16))
 
         self.lbl_petroleo = self._criar_bloco_indice(externos_frame3, "Petróleo")
         self.lbl_minerio = self._criar_bloco_indice(externos_frame3, "Minério")
 
-        # Filtro macro (experimental) - score somando os ativos acima,
-        # separado do sinal principal do leilao (ver estrategia_leilao).
-        self.lbl_titulo_macro = tk.Label(
-            root, text="FILTRO MACRO (experimental)", font=("Segoe UI", 10, "bold"),
-            bg=COR_FUNDO, fg=COR_TEXTO_FRACO,
+        # Botoes de historico ("banco de dados" das leituras)
+        botoes_frame = tk.Frame(root, bg=COR_FUNDO)
+        botoes_frame.pack(fill="x", padx=16, pady=(0, 16))
+        self.estilo_botao = dict(
+            font=("Segoe UI", 9, "bold"), bd=0, relief="flat", cursor="hand2",
         )
-        self.lbl_titulo_macro.pack(anchor="w", padx=16, pady=(0, 4))
-
-        macro_frame = tk.Frame(root, bg=COR_PAINEL)
-        macro_frame.pack(fill="x", padx=16, pady=(0, 16))
-        self.lbl_score_macro = tk.Label(
-            macro_frame, text="Score: -", font=("Consolas", 12, "bold"),
-            bg=COR_PAINEL, fg=COR_TEXTO, anchor="w",
-        )
-        self.lbl_score_macro.pack(side="left", padx=10, pady=8)
-        self.lbl_veredito_macro = tk.Label(
-            macro_frame, text=estrategia.SEM_DADO, font=("Segoe UI", 12, "bold"),
-            bg=COR_PAINEL, fg=COR_TEXTO_FRACO, anchor="e",
-        )
-        self.lbl_veredito_macro.pack(side="right", padx=10, pady=8)
+        tk.Button(
+            botoes_frame, text="Salvar leitura", bg=COR_ACENTO, fg="#04141a",
+            activebackground="#33dfff", command=self.salvar_leitura, **self.estilo_botao,
+        ).pack(side="left", expand=True, fill="x", padx=(0, 4))
+        tk.Button(
+            botoes_frame, text="Ver histórico", bg=COR_PAINEL, fg=COR_TEXTO,
+            activebackground="#242b3d", command=self.ver_historico, **self.estilo_botao,
+        ).pack(side="left", expand=True, fill="x", padx=(4, 0))
 
         mercado_externo.iniciar()
         mercado_macro.iniciar()
@@ -229,100 +174,38 @@ class PainelLeilao:
         self.root.after(INTERVALO_ATUALIZACAO_MS, self._agendar_atualizacao)
 
     def _atualizar(self):
-        if self.workbook is None:
-            self.workbook = excel_leitor.conectar_workbook()
-
-        if self.workbook is None:
-            self.lbl_status_conexao.config(text="⚠ Excel não encontrado", fg=COR_AMARELO)
-            return
-
-        dados = excel_leitor.ler_dados(self.workbook)
-        if dados is None:
-            self.lbl_status_conexao.config(text="⚠ perdeu conexão, tentando de novo...", fg=COR_AMARELO)
-            self.workbook = None
-            return
-
-        self.lbl_status_conexao.config(text="● conectado", fg=COR_VERDE)
-
+        dados = {}
         dados.update(mercado_externo.obter_ultimo())
         dados.update(mercado_macro.obter_ultimo())
-
-        resultado = estrategia.calcular_sinal(
-            dados["fechamento"], dados["ajuste"], dados["teorico"]
-        )
         self._cache_dados = dados
-        self._cache_resultado = resultado
+        self._cache_resultado = estrategia.calcular_score_macro(
+            petroleo=dados.get("petroleo"), minerio=dados.get("minerio"),
+            dxy=dados.get("dxy"), vix=dados.get("vix"), sp500=dados.get("sp500"),
+        )
         self._rerender()
 
     def _rerender(self):
         """Redesenha a tela com os ultimos dados lidos, respeitando o modo
-        live (chamada tanto apos ler o Excel quanto ao ligar/desligar o
-        checkbox, pra reagir na hora sem esperar o proximo ciclo)."""
+        live (chamada tanto apos buscar dados novos quanto ao ligar/desligar
+        o checkbox, pra reagir na hora sem esperar o proximo ciclo)."""
         self._atualizar_rotulos()
-        if self._cache_resultado is not None:
-            self._atualizar_badge(self._cache_resultado)
-        if self._cache_dados is not None and self._cache_resultado is not None:
-            self._atualizar_dados(self._cache_dados, self._cache_resultado)
-            self._atualizar_indices(self._cache_dados)
-            self._atualizar_macro(self._cache_dados)
+        self._atualizar_badge(self._cache_resultado)
+        self._atualizar_indices(self._cache_dados)
+        self._atualizar_score(self._cache_resultado)
 
     def _atualizar_rotulos(self):
         oculto = self.var_modo_live.get()
-        for lbl, texto_original in self.rotulos_dados:
-            lbl.config(text="••••" if oculto else texto_original)
         for lbl, texto_original in self.rotulos_indices:
             lbl.config(text="•••" if oculto else texto_original)
-        self.lbl_titulo_macro.config(
-            text="••••••••••••" if oculto else "FILTRO MACRO (experimental)"
-        )
 
     def _atualizar_badge(self, r):
-        # o sinal final fica sempre visivel, inclusive no modo live - e'
-        # o que o Bruno quer mostrar; o que se esconde e' o "porque".
-        sinal = r["sinal_base"] or r["status"]
-        cor = CORES_SINAL.get(sinal, COR_CINZA)
+        # o veredito final fica sempre visivel, inclusive no modo live - e'
+        # o que faz sentido mostrar numa live. O que se esconde e' o "porque"
+        # (os ativos e o score que embasam ele).
+        veredito = r["veredito"]
+        cor = CORES_SINAL.get(veredito, COR_CINZA)
         self.frame_badge.config(bg=cor)
-        self.lbl_sinal.config(bg=cor, text=sinal)
-
-        if self.var_modo_live.get():
-            self.lbl_confirmacao.config(text="", fg=COR_TEXTO_FRACO)
-            return
-
-        if r["confirma"] is True:
-            self.lbl_confirmacao.config(
-                text="✓ Ajuste confirma a mesma direção.", fg=COR_VERDE
-            )
-        elif r["confirma"] is False:
-            self.lbl_confirmacao.config(
-                text="⚠ Ajuste diverge da direção do fechamento.", fg=COR_AMARELO
-            )
-        else:
-            self.lbl_confirmacao.config(text="", fg=COR_TEXTO_FRACO)
-
-    def _atualizar_dados(self, dados, r):
-        if self.var_modo_live.get():
-            for lbl in self.linhas_dados.values():
-                lbl.config(text="••••••", fg=COR_TEXTO_FRACO)
-            return
-
-        self.linhas_dados["ultimo"].config(text=self._fmt(dados.get("ultimo")), fg=COR_TEXTO)
-        self.linhas_dados["fechamento"].config(text=self._fmt(dados["fechamento"]), fg=COR_TEXTO)
-        self.linhas_dados["ajuste"].config(text=self._fmt(dados["ajuste"]), fg=COR_TEXTO)
-        self.linhas_dados["teorico"].config(text=self._fmt(dados["teorico"]), fg=COR_TEXTO)
-
-        # a tendencia usa o preco ATUAL (nao o teorico, que so existe
-        # durante a janela do leilao e fica 0 no resto do pregao) - assim
-        # da pra ver a tendencia vs VWAP o dia inteiro.
-        preco_referencia = dados.get("ultimo")
-        tendencia_mensal = estrategia.tendencia_vwap(preco_referencia, dados.get("vwap_mensal"))
-        texto, cor = formatar_vwap(dados.get("vwap_mensal"), tendencia_mensal)
-        self.linhas_dados["vwap_mensal"].config(text=texto, fg=cor)
-
-        tendencia_semanal = estrategia.tendencia_vwap(preco_referencia, dados.get("vwap_semanal"))
-        texto, cor = formatar_vwap(dados.get("vwap_semanal"), tendencia_semanal)
-        self.linhas_dados["vwap_semanal"].config(text=texto, fg=cor)
-        self.linhas_dados["gap_fechamento"].config(text=formatar_gap(r["gap_fechamento"]), fg=COR_TEXTO)
-        self.linhas_dados["gap_ajuste"].config(text=formatar_gap(r["gap_ajuste"]), fg=COR_TEXTO)
+        self.lbl_sinal.config(bg=cor, text=veredito)
 
     def _atualizar_indices(self, dados):
         blocos = (
@@ -339,31 +222,45 @@ class PainelLeilao:
             texto, cor = formatar_variacao(dados.get(chave))
             lbl.config(text=texto, fg=cor)
 
-    def _atualizar_macro(self, dados):
+    def _atualizar_score(self, r):
         if self.var_modo_live.get():
             self.lbl_score_macro.config(text="Score: ••••", fg=COR_TEXTO_FRACO)
-            self.lbl_veredito_macro.config(text="••••••", fg=COR_TEXTO_FRACO)
             return
-
-        r = estrategia.calcular_score_macro(
-            petroleo=dados.get("petroleo"), minerio=dados.get("minerio"),
-            dxy=dados.get("dxy"), vix=dados.get("vix"), sp500=dados.get("sp500"),
-        )
         texto_score, cor_score = formatar_variacao(r["score"])
         self.lbl_score_macro.config(text=f"Score: {texto_score}", fg=cor_score)
-        cor_veredito = CORES_SINAL.get(r["veredito"], COR_CINZA)
-        self.lbl_veredito_macro.config(text=r["veredito"], fg=cor_veredito)
 
-    @staticmethod
-    def _fmt(valor):
-        if not valor:
-            return "-"
-        return f"{valor:.0f}"
+    def salvar_leitura(self):
+        if self._cache_resultado.get("score") is None:
+            if not messagebox.askyesno(
+                "Sem dados ainda",
+                "Ainda não tem nenhuma leitura completa (score em branco).\n"
+                "Salvar assim mesmo (com os campos que já tiverem valor)?",
+            ):
+                return
+        linha = historico_macro.salvar_leitura(self._cache_dados, self._cache_resultado)
+        messagebox.showinfo(
+            "Salvo",
+            f"Leitura salva às {linha['data_hora']} em "
+            f"{historico_macro.ARQUIVO_HISTORICO} (veredito: {linha['veredito']}).",
+        )
+
+    def ver_historico(self):
+        caminho = os.path.abspath(historico_macro.ARQUIVO_HISTORICO)
+        if not os.path.exists(caminho):
+            messagebox.showinfo(
+                "Histórico",
+                "Ainda não tem nenhuma leitura salva - clica em 'Salvar leitura' primeiro.",
+            )
+            return
+        try:
+            os.startfile(caminho)
+        except AttributeError:
+            subprocess.Popen(["xdg-open", caminho])
 
 
 def main():
     root = tk.Tk()
-    root.geometry("440x880")
+    root.geometry("440x680")
     root.resizable(False, False)
     PainelLeilao(root)
     root.mainloop()

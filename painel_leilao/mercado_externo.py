@@ -1,26 +1,34 @@
 """
-Leitura periodica de VIX e DXY (Indice Dolar) via Yahoo Finance (yfinance).
+Leitura periodica de VIX, DXY (Indice Dolar) e os futuros de indices
+americanos (S&P500/Nasdaq/Dow) via Yahoo Finance (yfinance).
 
-Complementa os indices que ja vem do Excel (RTD do Profit/BlackArrow), que
-nao exportam esses dois. Diferente do resto do painel, aqui tem uma chamada
-de rede - por isso roda num loop de fundo (thread separada), buscando de
-tempos em tempos e guardando o ultimo valor num cache. O ciclo rapido do
-painel (a cada 1,5s) so le esse cache, nunca espera a rede.
+Antes S&P500/Nasdaq/Dow vinham do Excel (RTD do BlackArrow) - isso foi
+removido (o Excel travava direto), entao agora os cinco vem todos daqui.
+Diferente do resto do painel, aqui tem chamada de rede - por isso roda
+num loop de fundo (thread separada), buscando de tempos em tempos e
+guardando o ultimo valor num cache. O ciclo rapido do painel (a cada
+1,5s) so le esse cache, nunca espera a rede.
 
-Sao dados so informativos (igual S&P500/Nasdaq/Dow), com um atraso tipico
-de alguns minutos no plano gratuito do Yahoo - aceitavel aqui porque nao
-alimentam o calculo do sinal, so dao contexto visual.
+Tem um atraso tipico de alguns minutos no plano gratuito do Yahoo. VIX,
+DXY, S&P500 sao informativos ou entram no score do Filtro Macro (ver
+estrategia_leilao.calcular_score_macro); Nasdaq/Dow sao so informativos.
 """
 import threading
 import time
 
 import yfinance as yf
 
-TICKERS = {"vix": "^VIX", "dxy": "DX-Y.NYB"}
+TICKERS = {
+    "vix": "^VIX",
+    "dxy": "DX-Y.NYB",
+    "sp500": "ES=F",   # E-mini S&P 500 futures
+    "nasdaq": "NQ=F",  # E-mini Nasdaq-100 futures
+    "dow": "YM=F",     # E-mini Dow futures
+}
 INTERVALO_ATUALIZACAO_S = 60
 
 _lock = threading.Lock()
-_ultimo = {"vix": None, "dxy": None}
+_ultimo = {chave: None for chave in TICKERS}
 _thread_iniciada = False
 
 
